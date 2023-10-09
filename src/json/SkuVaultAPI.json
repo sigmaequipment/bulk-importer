@@ -1,0 +1,11 @@
+{
+    "TenantToken":"FsoVOQznBeUrR5188WQqkxrt5o8ZE/64OLHY2/LASZE=",
+    "UserToken":"aev/tZ/ZhRsA/h/C8PKpZXR9iTWQDqJ8+Nztj8B3mTc=",
+    "BaseUrl" : "https://app.skuvault.com/api/",
+    "Endpoints" : {
+        "createbrands" : "products/createBrands",
+        "createproduct" : "products/createProduct",
+        "createsuppliers" : "products/createSuppliers",
+        "updateProduct" : "products/updateProduct"
+    }
+}
