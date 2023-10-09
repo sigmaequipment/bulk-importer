@@ -4,7 +4,7 @@ const fs = require("fs");
 const fastify = Fastify({
     logger: true
 });
-function usePython(rows) {
+function usePython() {
     let dataToSend;
     return new Promise((resolve, reject) => {
         const python = spawn('python', ['src/python/formatRequestForChannelAdvisor.py','src/json/temp/temp.json']);
