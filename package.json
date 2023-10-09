@@ -4,7 +4,8 @@
   "main": "main.js",
   "scripts": {
     "test": "npx vitest",
-    "start": "node main.js"
+    "start": "node main.js",
+    "dev": "nodemon main.js"
   },
   "keywords": [
     "bulk",
@@ -18,5 +19,10 @@
   },
   "devDependencies": {
     "vitest": "^0.34.6"
+  },
+  "nodemonConfig": {
+    "ignore": [
+      "src/json/**/*"
+    ]
   }
 }
