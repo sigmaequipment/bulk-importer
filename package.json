@@ -3,7 +3,8 @@
   "version": "0.0.1",
   "main": "main.js",
   "scripts": {
-    "test": "npx vitest"
+    "test": "npx vitest",
+    "start": "node main.js"
   },
   "keywords": [
     "bulk",
@@ -11,7 +12,7 @@
   ],
   "author": "Michael Walker",
   "license": "MIT",
-  "description": "",
+  "description": "A bulk version of the current import with a maximum throughput of 500 items per request.",
   "dependencies": {
     "fastify": "^4.23.2"
   },
