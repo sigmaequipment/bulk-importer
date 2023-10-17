@@ -1,6 +1,8 @@
-module.exports = async function createTempJSONFile(rows,fs=fs) {
+const fs = require('fs')
+
+module.exports = async function createTempJSONFile(rows,fsi=fs) {
     await new Promise((resolve, reject) => {
-        fs.writeFile('src/json/temp/temp.json', JSON.stringify(rows), (err) => {
+        fsi.writeFile('src/json/temp/temp.json', JSON.stringify(rows), (err) => {
             if (err) {
                 reject(err)
             }
@@ -9,7 +11,7 @@ module.exports = async function createTempJSONFile(rows,fs=fs) {
     })
     // return a destroy function
     return ()=> new Promise((resolve, reject) => {
-        fs.unlink('src/json/temp/temp.json', (err) => {
+        fsi.unlink('src/json/temp/temp.json', (err) => {
             if (err) {
                 reject(err)
             }
