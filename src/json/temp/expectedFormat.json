@@ -1,0 +1,40 @@
+{   
+    "items":[
+        {
+            "id": 7686,
+            "item_name": "ALLEN BRADLEY 0-A16",
+            "part_number": "0-A16",
+            "brand": "ALLEN BRADLEY",
+            "description": "DISCONTINUED BY MANUFACTURER, COIL, 550 VAC, 60 HZ, SCREW TERMINAL",
+            "item_category": "COIL",
+            "weight": "0.12 lbs",
+            "estimated_value": "Not Listed",
+            "authorized_distr_brokerage_price": "Not Listed",
+            "original_packaging_price": 137,
+            "radwell_packaging_price": 119,
+            "refurbished_price": 110,
+            "repair_price": "Not Listed",
+            "last_price_update": "3/17/2021",
+            "link": "http://www.radwell.com/Buy/ALLEN%20BRADLEY/ALLEN%20BRADLEY/0-A16",
+            "flagged": 0,
+            "lister_sku": 1083495,
+            "apn": "Not Listed",
+            "suggested_category": "COIL",
+            "sigma_category": "Coil",
+            "sigma_sku": "NULL",
+            "sigma_part_number": "NULL",
+            "approval_time": "NULL",
+            "user_who_approved": "NULL",
+            "inventory_sku": 244753,
+            "series": "NULL",
+            "source": "NULL"
+        }
+    ],
+    "tokens":{
+        "clientid": "string",
+        "clientsecret": "string",
+        "refreshtoken": "string",
+        "TenantToken": "string",
+        "UserToken": "string"
+    }
+}

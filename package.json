@@ -4,7 +4,8 @@
   "main": "main.js",
   "scripts": {
     "test": "npx vitest",
-    "start": "node main.js"
+    "start": "node main.js",
+    "dev": "nodemon main.js"
   },
   "keywords": [
     "bulk",
@@ -14,9 +15,15 @@
   "license": "MIT",
   "description": "A bulk version of the current import with a maximum throughput of 500 items per request.",
   "dependencies": {
+    "@fastify/cors": "^8.4.0",
     "fastify": "^4.23.2"
   },
   "devDependencies": {
     "vitest": "^0.34.6"
+  },
+  "nodemonConfig": {
+    "ignore": [
+      "src/json/**/*"
+    ]
   }
 }
