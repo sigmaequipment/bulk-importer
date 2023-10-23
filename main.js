@@ -1,5 +1,15 @@
 const Fastify = require('fastify');
 const cors = require('@fastify/cors');
+const formatDataForSkuVault = require("./src/javascript/formatDataForSkuVault/formatDataforSkuVault");
+const registerSchema = require("./src/javascript/untestedModules/registerSchema");
+const authorizeChannelAdvisor = require("./src/javascript/ChannelAdvisor/authorize");
+const formatItem = require("./src/javascript/untestedModules/propertyFormatter");
+const uploadToSkuVault = require("./src/javascript/skuVault/upload");
+const importProductToChannelAdvisor = require("./src/javascript/ChannelAdvisor/import");
+const createPromisePool = require("./src/javascript/promisePool/promisePool");
+const {conditionsMap} = require("./src/javascript/createChildrenFactory/createChildrenFactory");
+const stream = require("stream");
+const conditions = Object.values(conditionsMap);
 const fastify = Fastify({
     logger: true
 });
@@ -12,128 +22,100 @@ fastify.register(cors, {
     origin: '*'
 });
 
-// This is the schema for the incoming items;
-fastify.addSchema({
-    $id: 'item',
-    type: 'object',
-    required:[
-        'id',
-        'item_name',
-        'part_number',
-        'brand',
-        'description',
-        'item_category',
-        'weight',
-        'estimated_value',
-        'authorized_distr_brokerage_price',
-        'original_packaging_price',
-        'radwell_packaging_price',
-        'refurbished_price',
-        'repair_price',
-        'last_price_update',
-        'link',
-        'flagged',
-        'lister_sku',
-        'apn',
-        'suggested_category',
-        'sigma_category',
-        'sigma_sku',
-        'sigma_part_number',
-        'approval_time',
-        'user_who_approved',
-        'inventory_sku',
-        'series',
-        'source'
-    ],
-    properties:{
-        id : {type:'number'},
-        item_name : {type:'string'},
-        part_number : {type:'string'},
-        brand : {type:'string'},
-        description : {type:'string'},
-        item_category : {type:'string'},
-        weight : {type:'string'},
-        estimated_value : {type:'string'},
-        authorized_distr_brokerage_price : {type:'string'},
-        original_packaging_price : {type:'number'},
-        radwell_packaging_price : {type:'number'},
-        refurbished_price : {type:'number'},
-        repair_price : {type:'string'},
-        last_price_update : {type:'string'},
-        link : {type:'string'},
-        flagged : {type:'number'},
-        lister_sku : {type:'number'},
-        apn : {type:'string'},
-        suggested_category : {type:'string'},
-        sigma_category : {type:'string'},
-        sigma_sku : {type:'string'},
-        sigma_part_number : {type:'string'},
-        approval_time : {type:'string'},
-        user_who_approved : {type:'string'},
-        inventory_sku : {type:'number'},
-        series : {type:'string'},
-        source : {type:'string'}
-    }
-})
-// this is the schema for the incoming payload
-fastify.addSchema({
-    $id:'incomingPayload',
-    type:'object',
-    required:['items','tokens'],
-    properties:{
-        items : {
-            type:'array',
-            maxItems: 125,
-            items:{
-                $ref:'item#'
-            },
-        },
-        tokens : {
-            type:'object',
-            required:['clientid','clientsecret','refreshtoken','TenantToken','UserToken'],
-            properties:{
-                clientid : {
-                    type:'string'
-                },
-                clientsecret : {
-                    type:'string'
-                },
-                refreshtoken : {
-                    type:'string'
-                },
-                TenantToken : {
-                    type:'string'
-                },
-                UserToken : {
-                    type:'string'
-                }
-            }
-        },
-    }
-})
 
+
+registerSchema("./src/json/schema.json",fastify)
 const incomingPayloadSchema ={
     schema:{
         body:{
             $ref:'incomingPayload#'
-        }
+          }
     }
 }
 
-fastify.post('/importToChannelAdvisor',incomingPayloadSchema, async (request) => {
-    const {body:{items}} = request;
-    console.log(items);
-    
-    //let destroy = await createTempJSONFile(items)
-    //let pythonData = await usePython()
-    //await destroy()
-    //reply.send({pythonData});
+/**
+ * @function
+ * @param items
+ * @return {Object<{channelAdvisorPayload: FlatArray<*, 1>[], skuVaultPayload: []}>}
+ */
+async function createPayloads (items) {
+    let skuVaultPayload = formatDataForSkuVault(items)
+    let channelAdvisorPayload = items.map(formatItem).flat()
+    return {
+        channelAdvisorPayload,
+        skuVaultPayload}
+}
+
+function channelAdvisorImport(channelAdvisorPayload,access_token){
+    const badSkus = [];
+    let parents = channelAdvisorPayload
+        .filter(item=>item.IsParent)
+        .map(item=>{
+            delete item.Attributes;
+            return item;
+        })
+    let children = channelAdvisorPayload.filter(item=>!item.IsParent);
+
+    const pool = createPromisePool(importProductToChannelAdvisor(access_token), 5);
+    const flagPool = createPromisePool(async (url)=> fetch(url,{method: 'PATCH'}), 5);
+
+    return pool.process(parents)
+        .then(({results,errors}) => {
+            let errs=errors.map((error) => error.item)
+            badSkus.push(...errs);
+            console.log("badSkus:",badSkus)
+            console.log("results:",results)
+            return results
+        })
+        .then((results) => {
+            const flagRouteMaker = (ID,condition) => `https://api.channeladvisor.com/v1/Products(${ID})/Labels('${condition}')?access_token=${access_token}`;
+            let promises = results.map(({ID})=>{
+                return conditions.map((condition,i)=>{
+                    return flagRouteMaker(ID,condition)
+                })
+            });
+            flagPool.process(promises.flat())
+                .then(({results,errors})=>{
+                    results
+                        .filter(result=>result.status !== 204)
+                        .forEach(result=>{errors.push(result)})
+                    return results.filter(result=>result.status === 204)
+                })
+        })
+        .then((res)=>{
+            return {res,badSkus}
+        })
+}
+
+
+
+
+
+fastify.post('/import',incomingPayloadSchema, async (request,reply) => {
+    const {body:{items,tokens}} = request;
+    const {channelAdvisorPayload,skuVaultPayload} = await createPayloads(items);
+    const access_token = await authorizeChannelAdvisor(tokens);
+    const response = await uploadToSkuVault(skuVaultPayload,tokens);
+    const {Status,Errors} = await response.json();
+    console.log(response.statusText)
+    // parse the response body
+    let responseBody = await response;
+    console.log(responseBody)
+
+
+
+    const {status,statusMessage} = response;
+    if(status === 202){
+
+    }
+
+    reply.send({channelAdvisorPayload,skuVaultPayload,access_token});
 });
 
 fastify.listen({port: 3005},(err,addr)=>{
     if(err){
         console.log(err)
-        //process.exit(1)
+        process.exit(1)
     }
     console.log(`Server listening at ${addr}`)
 })

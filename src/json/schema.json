@@ -1,0 +1,93 @@
+[
+  {
+    "$id": "item",
+    "type": "object",
+    "required":[
+      "item_name",
+      "part_number",
+      "brand",
+      "description",
+      "weight",
+      "estimated_value",
+      "authorized_distr_brokerage_price",
+      "original_packaging_price",
+      "radwell_packaging_price",
+      "refurbished_price",
+      "repair_price",
+      "last_price_update",
+      "link",
+      "lister_sku",
+      "apn",
+      "suggested_category",
+      "sigma_category",
+      "sigma_old_sku",
+      "sigma_old_part_number",
+      "approval_time",
+      "user_who_approved",
+      "inventory_sku",
+      "series",
+      "source"
+    ],
+    "properties":{
+      "item_name" : {"type":"string"},
+      "part_number" : {"type":"string"},
+      "brand" : {"type":"string"},
+      "description" : {"type":"string"},
+      "weight" : {"type":"string"},
+      "estimated_value" : {"type":"string"},
+      "authorized_distr_brokerage_price" : {"type":"string"},
+      "original_packaging_price" : {"type":"number"},
+      "radwell_packaging_price" : {"type":"number"},
+      "refurbished_price" : {"type":"number"},
+      "repair_price" : {"type":"string"},
+      "last_price_update" : {"type":"string"},
+      "link" : {"type":"string"},
+      "lister_sku" : {"type":"number"},
+      "apn" : {"type":"string"},
+      "suggested_category" : {"type":"string"},
+      "sigma_category" : {"type":"string"},
+      "sigma_old_sku" : {"type":"string"},
+      "sigma_old_part_number" : {"type":"string"},
+      "approval_time" : {"type":"string"},
+      "user_who_approved" : {"type":"string"},
+      "inventory_sku" : {"type":"number"},
+      "series" : {"type":"string"},
+      "source" : {"type":"string"}
+    }
+  },
+  {
+    "$id":"incomingPayload",
+    "type":"object",
+    "required":["items","tokens"],
+    "properties":{
+      "items" : {
+        "type":"array",
+        "maxItems": 125,
+        "items":{
+          "$ref":"item#"
+        }
+      },
+      "tokens" : {
+        "type":"object",
+        "required":["clientid","clientsecret","refreshtoken","TenantToken","UserToken"],
+        "properties":{
+          "clientid" : {
+            "type":"string"
+          },
+          "clientsecret" : {
+            "type":"string"
+          },
+          "refreshtoken" : {
+            "type":"string"
+          },
+          "TenantToken" : {
+            "type":"string"
+          },
+          "UserToken" : {
+            "type":"string"
+          }
+        }
+      }
+    }
+  }
+]
