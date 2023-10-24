@@ -47,45 +47,70 @@ async function createPayloads (items) {
         skuVaultPayload}
 }
 
-function channelAdvisorImport(channelAdvisorPayload,access_token){
-    const badSkus = [];
-    let parents = channelAdvisorPayload
-        .filter(item=>item.IsParent)
-        .map(item=>{
-            delete item.Attributes;
-            return item;
-        })
-    let children = channelAdvisorPayload.filter(item=>!item.IsParent);
-
+async function basicChannelAdvisorImport(payload,access_token,badSkus,location="ChannelAdvisorParentImport"){
     const pool = createPromisePool(importProductToChannelAdvisor(access_token), 5);
-    const flagPool = createPromisePool(async (url)=> fetch(url,{method: 'PATCH'}), 5);
+    let channelAdvisorResults = await pool.process(payload);
 
-    return pool.process(parents)
-        .then(({results,errors}) => {
-            let errs=errors.map((error) => error.item)
-            badSkus.push(...errs);
-            console.log("badSkus:",badSkus)
-            console.log("results:",results)
-            return results
+    let {results,errors} = channelAdvisorResults;
+    if(errors.length){
+        errors.forEach(({item,raw})=>{
+            const {Message:ErrorMessage} = raw;
+            const {Sku} = item;
+            badSkus.push({Sku,ErrorMessage,FailedAt:location})
         })
-        .then((results) => {
-            const flagRouteMaker = (ID,condition) => `https://api.channeladvisor.com/v1/Products(${ID})/Labels('${condition}')?access_token=${access_token}`;
-            let promises = results.map(({ID})=>{
-                return conditions.map((condition,i)=>{
-                    return flagRouteMaker(ID,condition)
-                })
-            });
-            flagPool.process(promises.flat())
-                .then(({results,errors})=>{
-                    results
-                        .filter(result=>result.status !== 204)
-                        .forEach(result=>{errors.push(result)})
-                    return results.filter(result=>result.status === 204)
-                })
+    }
+    return results
+}
+
+
+async function channelAdvisorImport(channelAdvisorPayload,access_token,badSkus){
+    let parents = channelAdvisorPayload.filter(item=>item.IsParent)
+
+    const parentResults = await basicChannelAdvisorImport(parents,access_token,badSkus);
+    const parentMap = parentResults.reduce((acc,{ID,Sku})=>{
+        acc[Sku] = ID;
+        return acc
+    })
+    const flagRouteMaker = (ID,condition) => `https://api.channeladvisor.com/v1/Products(${ID})/Labels('${condition}')?access_token=${access_token}`;
+    let promises = parentResults.map(({ID})=>{
+             return conditions.map((condition,i)=>{
+                 return flagRouteMaker(ID,condition)
+             })
+    });
+    const flagPool = createPromisePool(async (url)=> fetch(url,{method: 'PATCH'}), 5);
+    const flagResults = await flagPool.process(promises.flat())
+    const {results:flaggedResults,errors:flaggedErrors} = flagResults;
+    const statuses = flaggedResults.map(result=>result.status);
+    if(!statuses.every(status=>status === 204)){
+        const responses = await Promise.all(flaggedResults.map(result=>result.json()));
+        console.log("statuses:",statuses)
+        console.log("responses:",responses)
+        console.log("flaggedResults:",flaggedResults)
+        console.log("flaggedErrors:",flaggedErrors)
+    }
+
+    let children = channelAdvisorPayload
+        .filter(item=>!item.IsParent)
+        .filter(({Sku})=>!badSkus.some(({Sku:badSku})=>badSku.includes(Sku)))
+        .map((item)=>{
+            item["ParentProductID"] = parentMap[item.Sku.split("-")[0]];
+            return item
         })
-        .then((res)=>{
-            return {res,badSkus}
-        })
+    console.log("children:",children)
+    const childrenResult = await basicChannelAdvisorImport(children,access_token,badSkus,"ChannelAdvisorChildImport");
+    console.log("childrenResult:",childrenResult)
+
+
+    // for all the errors with parents, we want to add them to badSkus
+
+    // return pool.process(parents)
+    //     .then(({results,errors}) => {
+    //         let errs=errors.map((error) => error.item)
+    //         badSkus.push(...errs);
+    //         console.log("results:",results)
+    //         console.log("errors:",errors)
+    //         return results
+    //     })
 }
 
 
@@ -98,7 +123,7 @@ async function skuVaultBulkImport(payload,token,badSkus){
     responses.forEach(({Status,Errors},i)=>{
         console.log("Status:",Status)
         Errors.forEach(error=>{
-            badSkus.push(error)
+            badSkus.push({...error,FailedAt:"SkuVaultBulkImport"})
         })
     })
     return responses
@@ -106,31 +131,30 @@ async function skuVaultBulkImport(payload,token,badSkus){
 
 
 
-//const access_token = await authorizeChannelAdvisor(tokens);
+//let children = channelAdvisorPayload.filter(item=>!item.IsParent);
 fastify.post('/import',incomingPayloadSchema, async (request,reply) => {
     const {body:{items,tokens}} = request;
     const badSkus = [];
     const {channelAdvisorPayload,skuVaultPayload} = await createPayloads(items);
+
     // if(skuVaultPayload.length > 1) {
-    //     await skuVaultBulkImport(skuVaultPayload, tokens, badSkus)
+    //    await skuVaultBulkImport(skuVaultPayload, tokens, badSkus)
     // }else{
     //     TODO: add single item import
     // }
+    // If A sku failed at the Sku Vault step, This filters it out of the Channel Advisor Payload,
+    // so we don't upload a bad sku to Channel Advisor
+    let filteredChannelAdvisorPayload = channelAdvisorPayload.filter(({Sku})=>!badSkus.some(({Sku:badSku})=>badSku.includes(Sku)))
+    console.log("filteredChannelAdvisorPayload:",filteredChannelAdvisorPayload)
+    if(filteredChannelAdvisorPayload.length === 0) return reply.send({badSkus});
+    const access_token = await authorizeChannelAdvisor(tokens);
+
+    await channelAdvisorImport(
+        filteredChannelAdvisorPayload,
+        access_token,
+        badSkus)
 
 
-    // const response = await uploadToSkuVault(skuVaultPayload,tokens);
-    // const {Status,Errors} = await response.json();
-    // console.log(response.statusText)
-    // // parse the response body
-    // let responseBody = await response;
-    // console.log(responseBody)
-    //
-    //
-    //
-    // const {status,statusMessage} = response;
-    // if(status === 202){
-    //
-    // }
 
     reply.send({badSkus});
 });
