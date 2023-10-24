@@ -11,7 +11,6 @@ function childrenFactory(parent,item){
         let tempChild = JSON.parse(JSON.stringify(parent));
         tempChild.IsParent = false;
         tempChild.Sku = inventory_sku + "-" + condition;
-        //todo add parentProductID
         tempChild.RetailPrice = price;
         tempChild.Attributes.push(...[
             {
@@ -24,15 +23,15 @@ function childrenFactory(parent,item){
             },
             {
                 "Name" : "Market Price: SIGMA Packaging",
-                "Value" : radwell_packaging_price
+                "Value" : String(radwell_packaging_price)
             },
             {
                 "Name" : "Market Price: Refurbished",
-                "Value" : refurbished_price
+                "Value" : String(refurbished_price)
             },
             {
                 "Name" : "Market Price: Original Packaging",
-                "Value" : original_packaging_price
+                "Value" : String(original_packaging_price)
             }
         ])
         return tempChild;
