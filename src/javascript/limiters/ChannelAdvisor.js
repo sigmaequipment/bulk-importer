@@ -1,5 +1,4 @@
-
-const APILimiter = require('../limiter/Limiter.js');
+const APILimiter = require('../limiter/limiter.js');
 
 const ChannelAdvisorLimiters = {
     uploadLimiter: APILimiter(1),
