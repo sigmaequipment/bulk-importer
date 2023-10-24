@@ -67,7 +67,10 @@ fastify.post('/import',incomingPayloadSchema, async (request,reply) => {
     reply.send({badSkus,results});
 });
 
-fastify.listen({port: 3005},(err,addr)=>{
+fastify.listen({
+    port: 3005,
+    host:"10.100.100.51"
+},(err,addr)=>{
     if(err){
         console.log(err)
         process.exit(1)
