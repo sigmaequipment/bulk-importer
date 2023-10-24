@@ -4,7 +4,8 @@ const formatDataForSkuVault = require("./src/javascript/formatDataForSkuVault/fo
 const registerSchema = require("./src/javascript/untestedModules/registerSchema");
 const authorizeChannelAdvisor = require("./src/javascript/ChannelAdvisor/authorize");
 const formatItem = require("./src/javascript/untestedModules/propertyFormatter");
-const uploadToSkuVault = require("./src/javascript/skuVault/upload");
+const uploadToSkuVaultBulk = require("./src/javascript/skuVault/uploadBulk");
+const uploadToSkuVaultSingle = require("./src/javascript/skuVault/upload");
 const importProductToChannelAdvisor = require("./src/javascript/ChannelAdvisor/import");
 const createPromisePool = require("./src/javascript/promisePool/promisePool");
 const {conditionsMap} = require("./src/javascript/createChildrenFactory/createChildrenFactory");
@@ -77,19 +78,15 @@ async function channelAdvisorImport(channelAdvisorPayload,access_token,badSkus,c
         })
     const flagRouteMaker = (ID,condition) => `https://api.channeladvisor.com/v1/Products(${ID})/Labels('${condition}')?access_token=${access_token}`;
     let promises = parentResults.map(({ID})=>{
-             return conditions.map((condition,i)=>{
+             return conditions.map((condition)=>{
                  return flagRouteMaker(ID,condition)
              })
     });
 
     const flagPool = createPromisePool(async (url)=> fetch(url,{method: 'PATCH'}), 5);
     const flagResults = await flagPool.process(promises.flat())
-    const {results:flaggedResults,errors:flaggedErrors} = flagResults;
-    const statuses = flaggedResults.map(result=>result.status);
-    if(!statuses.every(status=>status === 204)){
-        const responses = await Promise.all(flaggedResults.map(result=>result.json()));
-    }
-
+    const {results:flaggedResults} = flagResults;
+    
     let children = channelAdvisorPayload
         .filter(item=>!item.IsParent)
         .filter(({Sku})=>!badSkus.some(({Sku:badSku})=>badSku.includes(Sku.split("-")[0].trim())))
@@ -102,20 +99,23 @@ async function channelAdvisorImport(channelAdvisorPayload,access_token,badSkus,c
 }
 
 
-async function skuVaultBulkImport(payload,token,badSkus){
-    const chunks = splitPayload(payload);
 
-    const pool = createPromisePool((items)=>uploadToSkuVault(items,token), 5);
-    let skuVaultResults = await pool.process(chunks)
-    let responses = await Promise.all(skuVaultResults.results.map(result=>result.json()));
-    responses.forEach(({Status,Errors},i)=>{
-        console.log("Status:",Status)
-        Errors.forEach(error=>{
-            badSkus.push({...error,FailedAt:"SkuVaultBulkImport"})
+function SkuVaultImporter(uploadFunction){
+    return async (payload,token,badSkus) =>{
+        const pool = createPromisePool((item)=>uploadFunction(item,token), 5);
+        let skuVaultResults = await pool.process(payload)
+        let responses = await Promise.all(skuVaultResults.results.map(result=>result.json()));
+
+        responses.forEach(({Status,Errors})=>{
+            console.log("Status:",Status)
+            Errors.forEach(error=>{
+                badSkus.push({...error,FailedAt:"SkuVaultSingleImport"})
+            })
         })
-    })
-    return responses
+        return responses
+    }
 }
+
 
 
 
@@ -124,19 +124,22 @@ fastify.post('/import',incomingPayloadSchema, async (request,reply) => {
     const {body:{items,tokens}} = request;
     const badSkus = [];
     const completedItems = [];
-    const {channelAdvisorPayload,skuVaultPayload} = await createPayloads(items);
-
+    let {channelAdvisorPayload,skuVaultPayload} = await createPayloads(items);
+    let uploadFunc;
     if(skuVaultPayload.length > 1) {
-        await skuVaultBulkImport(skuVaultPayload, tokens, badSkus)
+        console.log("Bulk Import")
+        uploadFunc = uploadToSkuVaultBulk;
     }else{
-        // TODO: add single item import
+        console.log("Single Route")
+        uploadFunc = uploadToSkuVaultSingle;
+        skuVaultPayload = skuVaultPayload[0];
     }
-
+    await SkuVaultImporter(uploadFunc)(skuVaultPayload,tokens,badSkus)
     // If A sku failed at the Sku Vault step, This filters it out of the Channel Advisor Payload,
-    // so we don't upload a bad sku to Channel Advisor
+    // so we don't upload.js a bad sku to Channel Advisor
     let filteredChannelAdvisorPayload = channelAdvisorPayload.filter(({Sku})=>!badSkus.some(({Sku:badSku})=>badSku.includes(Sku)))
-
     if(filteredChannelAdvisorPayload.length === 0) return reply.send({badSkus});
+
     const access_token = await authorizeChannelAdvisor(tokens);
 
     let results = await channelAdvisorImport(

@@ -1,7 +1,6 @@
 const ServerRequest = require("../serverRequester/serverRequester");
 const skuVaultLimiters = require("../limiters/skuVault");
-
-module.exports = async function uploadToSkuVaultSingle(payload, tokens){
+module.exports = async function uploadToSkuVaultBulk(payload, tokens){
     let skuVaultRequester = new ServerRequest(skuVaultLimiters.heavy);
     skuVaultRequester.method = 'POST';
     skuVaultRequester.headers = {
@@ -11,10 +10,10 @@ module.exports = async function uploadToSkuVaultSingle(payload, tokens){
         "UserToken": tokens.UserToken
     };
     skuVaultRequester.body = JSON.stringify({
-        ...payload,
+        Items:payload,
         TenantToken:tokens.TenantToken,
         UserToken:tokens.UserToken
     })
-    const url = 'https://app.skuvault.com/api/products/createProduct';
+    const url = 'https://app.skuvault.com/api/products/createProducts';
     return await skuVaultRequester.executeRequest(url);
 }
