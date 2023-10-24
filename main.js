@@ -8,7 +8,8 @@ const uploadToSkuVault = require("./src/javascript/skuVault/upload");
 const importProductToChannelAdvisor = require("./src/javascript/ChannelAdvisor/import");
 const createPromisePool = require("./src/javascript/promisePool/promisePool");
 const {conditionsMap} = require("./src/javascript/createChildrenFactory/createChildrenFactory");
-const stream = require("stream");
+const splitPayload = require("./src/javascript/splitPayload/splitPayload");
+
 const conditions = Object.values(conditionsMap);
 const fastify = Fastify({
     logger: true
@@ -88,28 +89,50 @@ function channelAdvisorImport(channelAdvisorPayload,access_token){
 }
 
 
+async function skuVaultBulkImport(payload,token,badSkus){
+    const chunks = splitPayload(payload);
+
+    const pool = createPromisePool((items)=>uploadToSkuVault(items,token), 5);
+    let skuVaultResults = await pool.process(chunks)
+    let responses = await Promise.all(skuVaultResults.results.map(result=>result.json()));
+    responses.forEach(({Status,Errors},i)=>{
+        console.log("Status:",Status)
+        Errors.forEach(error=>{
+            badSkus.push(error)
+        })
+    })
+    return responses
+}
 
 
 
+//const access_token = await authorizeChannelAdvisor(tokens);
 fastify.post('/import',incomingPayloadSchema, async (request,reply) => {
     const {body:{items,tokens}} = request;
+    const badSkus = [];
     const {channelAdvisorPayload,skuVaultPayload} = await createPayloads(items);
-    const access_token = await authorizeChannelAdvisor(tokens);
-    const response = await uploadToSkuVault(skuVaultPayload,tokens);
-    const {Status,Errors} = await response.json();
-    console.log(response.statusText)
-    // parse the response body
-    let responseBody = await response;
-    console.log(responseBody)
+    // if(skuVaultPayload.length > 1) {
+    //     await skuVaultBulkImport(skuVaultPayload, tokens, badSkus)
+    // }else{
+    //     TODO: add single item import
+    // }
 
 
+    // const response = await uploadToSkuVault(skuVaultPayload,tokens);
+    // const {Status,Errors} = await response.json();
+    // console.log(response.statusText)
+    // // parse the response body
+    // let responseBody = await response;
+    // console.log(responseBody)
+    //
+    //
+    //
+    // const {status,statusMessage} = response;
+    // if(status === 202){
+    //
+    // }
 
-    const {status,statusMessage} = response;
-    if(status === 202){
-
-    }
-
-    reply.send({channelAdvisorPayload,skuVaultPayload,access_token});
+    reply.send({badSkus});
 });
 
 fastify.listen({port: 3005},(err,addr)=>{
