@@ -76,7 +76,7 @@ The API will then return a JSON response with the results of the import.
         * LotPriority
     * **Tenant Token**
     * **User Token**
-* Responses all have (Status and Error Properties)
+* All Responses have (Status and Error Properties)
 
     * 200
         * Success
@@ -141,89 +141,6 @@ The API will then return a JSON response with the results of the import.
 ### Success Response
 
 ```json
-
-SIGMA Group
-
-
-Search
-New layout
-
-Use up and down arrow keys to navigate
-Message
-Search conversations
-ALL
-Brandon, Randa
-
-3
-The end point also returns "results"
-thats gives the completed skus back as well
-
-Brandon Weisman
-11:15 AM
-Yeah, saw that earlier and have been working on adapting that structure for what error handling I'll have to do
-
-Michael Walker
-shared a snippet
-11: 23 AM
-Example bad path ( final )
-{
-"badSkus": [
-{
-"Sku": "520807",
-"ErrorMessage": "SKU already exists.\n",
-"FailedAt": "ChannelAdvisorParentImport"
-}
-],
-"results": []
-}
-1
-{
-2
-"badSkus": [
-3
-{
-4
-"Sku": "520807",
-5
-"ErrorMessage": "SKU already exists.\n",
-6
-"FailedAt": "ChannelAdvisorParentImport"
-7
-}
-8
-],
-9
-"results": []
-10
-}
-10 Lines
-Expand
-
-Michael Walker
-shared a note
-11: 25 AM
-Example success
-{"badSkus": [], "results": [{"@odata.context": "https://api.channeladvisor.com/v1/$metadata#Products/$entity", "ID": 5998470, "ProfileID": 1204534...
-
-Randa Doleh
-11: 31 AM
-Great job guys!
-
-
-
-
-
-No pins yet
-Pin information and it will appear here so that you can reference it later.
-You have dropped the item. You have moved the item from position 2 to position 2
-
-Michael Walker
-
-11: 25 AM
-Example success
-Normal
-
-Text format menu, Normal
 {
   "badSkus": [],
   "results": [

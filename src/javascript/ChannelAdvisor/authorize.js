@@ -6,16 +6,16 @@ const fsp = require("fs/promises");
 const fs = require("fs");
 
 
-module.exports = async function authorizeChannelAdvisor ({clientid,clientsecret,refreshtoken}) {
+module.exports = async function authorizeChannelAdvisor({clientid, clientsecret, refreshtoken}) {
     const access_tokens = await fsp.readFile("./src/json/access_token.json").then(String).then(JSON.parse);
-    if(access_tokens[refreshtoken]){
-        let {time_created,access_token} = access_tokens[refreshtoken];
+    if (access_tokens[refreshtoken]) {
+        let {time_created, access_token} = access_tokens[refreshtoken];
         // if time_created older than 59 minutes, get new token else return token
         time_created = new Date(time_created);
         const now = new Date();
         const timeSinceLastAuth = now - time_created;
         const safeInterval = 1000 * 60 * 60 - 2;
-        if(timeSinceLastAuth < safeInterval){
+        if (timeSinceLastAuth < safeInterval) {
             return access_token
         }
     }
@@ -39,6 +39,6 @@ module.exports = async function authorizeChannelAdvisor ({clientid,clientsecret,
         time_created: new Date(),
         access_token: accessTokenData['access_token']
     }
-    fs.writeFileSync("./src/json/access_token.json",JSON.stringify(access_tokens,null,2),{flag:"w"});
+    fs.writeFileSync("./src/json/access_token.json", JSON.stringify(access_tokens, null, 2), {flag: "w"});
     return accessTokenData['access_token'];
 }
