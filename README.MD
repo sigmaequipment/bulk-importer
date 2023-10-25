@@ -4,7 +4,9 @@
 
 The current implementation of the importer only allows for single file imports of items.
 This is a problem when you have a large number of items to import. This bulk importer
-allows you to import multiple items at once, with a maximum of 500 items per import.
+allows you to import multiple items at once, with a maximum of 125 items per import.
+This allows the code base to take full advantage of SkuVault's Throttling limits.
+Which is our bottleneck for imports.
 
 ---
 
@@ -18,10 +20,17 @@ allows you to import multiple items at once, with a maximum of 500 items per imp
 
 ## Description
 
-The API will expose an `/importProductBulk` end point that accepts a POST request with a JSON body.
-This body must contain a list of sku's, and all the necessary tokens for SkuVault and Channel Advisor.
+The API will expose an `/import` end point that accepts a POST request with a JSON body.
+The Body will contain an array of items to import, and the tokens required to make the API calls.
+If the Items array has only one item, It runs the call through single import route with channel advisor.
+This allows us to maintain the same throughput as the old importer for manual creation of items
+While allowing for far greater throughput for bulk imports.
 The API will then call the SkuVault `/addItemBulk` endpoint, and the Channel Advisor `/ProductUpload` endpoint.
 The API will then return a JSON response with the results of the import.
+
+The results in the creation of 125 Sku being created at once.
+In SkuVault, this is 500 unique items (Children Sku's).
+In Channel Advisor, this is 625 unique items (Parent and Children Sku's).
 
 ## Token Requirements
 
@@ -100,31 +109,31 @@ The API will then return a JSON response with the results of the import.
 {
   "items": [
     {
-      "item_name": "ALLEN BRADLEY 0-A16",
-      "lister_sku": 1083495,
-      "part_number": "0-A16",
-      "brand": "ALLEN BRADLEY",
-      "description": "DISCONTINUED BY MANUFACTURER, COIL, 550 VAC, 60 HZ, SCREW TERMINAL",
-      "suggested_category": "COIL",
-      "sigma_category": "Coil",
-      "weight": "0.12 lbs",
-      "link": "http://www.radwell.com/Buy/ALLEN%20BRADLEY/ALLEN%20BRADLEY/0-A16",
-      "apn": "Not Listed",
-      "series": "NULL",
-      "sigma_old_sku": "NULL",
-      "sigma_old_part_number": "NULL",
-      "estimated_value": "Not Listed",
-      "authorized_distr_brokerage_price": "Not Listed",
-      "original_packaging_price": 137,
-      "radwell_packaging_price": 119,
-      "refurbished_price": 110,
-      "repair_price": "Not Listed",
-      "last_price_update": "3/17/2021",
-      "flagged": 0,
-      "approval_time": "NULL",
-      "user_who_approved": "NULL",
-      "inventory_sku": 244753,
-      "source": "NULL"
+      "item_name": "string",
+      "lister_sku": "number",
+      "part_number": "string",
+      "brand": "string",
+      "description": "string",
+      "suggested_category": "string",
+      "sigma_category": "string",
+      "weight": "string",
+      "link": "string?<validurl>",
+      "apn": "string",
+      "series": "string",
+      "sigma_old_sku": "string",
+      "sigma_old_part_number": "string",
+      "estimated_value": "string",
+      "authorized_distr_brokerage_price": "string",
+      "original_packaging_price": "number", 
+      "radwell_packaging_price": "number",
+      "refurbished_price": "number",
+      "repair_price": "string",
+      "last_price_update": "date",
+      "flagged": "number",
+      "approval_time": "date / timestamp",
+      "user_who_approved": "string",
+      "inventory_sku": "number",
+      "source": "string"
     }
   ],
   "tokens": {
