@@ -1,4 +1,4 @@
-const { log, error:err } = require("../logger/logger");
+const { log, error:err } = require("../Logger/logger");
 const createPromisePool = require("../promisePool/promisePool");
 module.exports = function SkuVaultImporter(uploadFunction){
     return async (payload,token,badSkus) =>{
