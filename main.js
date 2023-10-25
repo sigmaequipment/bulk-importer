@@ -9,7 +9,6 @@ const SkuVaultImporter = require("./src/javascript/skuVault/importer");
 const channelAdvisorImport = require("./src/javascript/ChannelAdvisor/fullImport");
 const {log,error} = require("./src/javascript/Logger/logger");
 
-
 const fastify = Fastify({
     logger: true
 });

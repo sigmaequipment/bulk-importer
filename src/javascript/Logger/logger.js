@@ -48,37 +48,37 @@ class Logger {
         const logMessage = `${this.usesTimestamp ? date.toDateString() : ""} ${message}\n`;
         fs.appendFileSync(fileName, logMessage);
     }
-    log(...message) {
+    log =(...message)=> {
         this.writeToLog(message.join(' '));
         if (this.usesConsole) {
             console.log(...message);
         }
     }
-    error(...message) {
+    error=(...message)=> {
         this.writeToLog(message.join(' '));
         if (this.usesConsole) {
             console.error(...message);
         }
     }
-    warn(...message) {
+    warn=(...message)=> {
         this.writeToLog(message.join(' '));
         if (this.usesConsole) {
             console.warn(...message);
         }
     }
-    info(...message) {
+    info=(...message)=> {
         this.writeToLog(message.join(' '));
         if (this.usesConsole) {
             console.info(...message);
         }
     }
-    debug(...message) {
+    debug=(...message)=> {
         this.writeToLog(message.join(' '));
         if (this.usesConsole) {
             console.debug(...message);
         }
     }
-    trace(...message) {
+    trace=(...message)=> {
         this.writeToLog(message.join(' '));
         if (this.usesConsole) {
             console.trace(...message);
@@ -88,8 +88,14 @@ class Logger {
 }
 
 logger = new Logger();
+const { log, error, warn, info, debug, trace } = logger;
 init();
 logger.log("Logger initialized");
 module.exports = {
-    ...logger
+    log,
+    error,
+    warn,
+    info,
+    debug,
+    trace
 }
