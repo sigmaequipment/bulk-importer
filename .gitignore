@@ -2,3 +2,17 @@ node_modules
 .idea
 ChannelAdvisorP1.csv
 /logs/*
+
+# Byte-compiled / optimized / DLL files
+pycache/
+*.py[cod]
+*$py.class
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
