@@ -1,6 +1,7 @@
 const ServerRequest = require("../serverRequester/serverRequester");
 const skuVaultLimiters = require("../limiters/skuVault");
 module.exports = async function uploadToSkuVaultBulk(payload, tokens){
+    console.log("here")
     let skuVaultRequester = new ServerRequest(skuVaultLimiters.heavy);
     skuVaultRequester.method = 'POST';
     skuVaultRequester.headers = {

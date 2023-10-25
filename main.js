@@ -8,6 +8,7 @@ const createPayloads = require("./src/javascript/untestedModules/createPayloads"
 const SkuVaultImporter = require("./src/javascript/skuVault/importer");
 const channelAdvisorImport = require("./src/javascript/ChannelAdvisor/fullImport");
 const {log,error} = require("./src/javascript/Logger/logger");
+const splitPayload = require('./src/javascript/splitPayload/splitPayload');
 
 const fastify = Fastify({
     logger: true
@@ -35,6 +36,7 @@ const incomingPayloadSchema ={
 fastify.post('/import',incomingPayloadSchema, async (request,reply) => {
     const {body:{items,tokens}} = request;
     let length = items.length;
+    console.log(JSON.stringify(items,null,2))
     log(`Request To Start Import of ${length} Items`);
     const badSkus = [];
     const completedItems = [];
@@ -44,6 +46,8 @@ fastify.post('/import',incomingPayloadSchema, async (request,reply) => {
     if(length > 1) {
         log("Bulk Import")
         uploadFunc = uploadToSkuVaultBulk;
+        skuVaultPayload = splitPayload(skuVaultPayload)
+        console.log(skuVaultPayload)
     }else{
         log("Single Route")
         uploadFunc = uploadToSkuVaultSingle;
@@ -67,7 +71,9 @@ fastify.post('/import',incomingPayloadSchema, async (request,reply) => {
     log(`Finished Channel Advisor Import`)
     results = results.concat(completedItems);
     log(`Finished Importing ${results.length} Items`)
-    reply.send({badSkus,results});
+    reply.send({badSkus,
+        results
+    });
 });
 
 fastify.listen({port: 3005, host:"10.100.100.51"},(err,addr)=>{

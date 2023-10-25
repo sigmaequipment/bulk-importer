@@ -27,8 +27,7 @@ async function channelAdvisorImport(channelAdvisorPayload,access_token,badSkus,c
 
     const flagPool = createPromisePool(async (url)=> fetch(url,{method: 'PATCH'}), 5);
     const flagResults = await flagPool.process(promises.flat())
-    const {results:flaggedResults} = flagResults;
-    log(`Finished Channel Advisor Flagging of ${flaggedResults.length} Items`)
+
 
     let children = channelAdvisorPayload
         .filter(item=>!item.IsParent)
