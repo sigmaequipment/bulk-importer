@@ -233,7 +233,6 @@ The API will then return a JSON response with the results of the import.
   "ReferenceSku": null,
   "ReferenceProductID": null
   },
-
   {
   "@odata.context": "https://api.channeladvisor.com/v1/$metadata#Products/$entity",
   "ID": 5998468,
