@@ -38,7 +38,7 @@ def updateSingleSKUFile(sku):
 
 #Background task to collect non user created items to be sent to the single importer
 class BackgroundTaskSingleImport(threading.Thread):
-    def getItemsForImport():
+    def getItemsForImport(self,*args,**kwargs):
         while True:
 
             #list to store items that will be part of payload
@@ -112,7 +112,7 @@ class BackgroundTaskSingleImport(threading.Thread):
             payload = json.dumps({"items" : items, "tokens" : tokens}, indent=4, default=str)
             
             #TODO set up request to Michael's endpoint and handle response
-            headers = {}
+            headers = {"Content-Type": "application/json"}
             importer_request = requests.post(url=Importer_URL, headers=headers, data=payload, timeout=None).json()
             
             print(importer_request)
