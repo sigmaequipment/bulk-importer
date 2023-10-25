@@ -1,5 +1,7 @@
 # Bulk Importer Documentation
+
 ## Introduction
+
 The current implementation of the importer only allows for single file imports of items.
 This is a problem when you have a large number of items to import. This bulk importer
 allows you to import multiple items at once, with a maximum of 500 items per import.
@@ -24,11 +26,13 @@ The API will then return a JSON response with the results of the import.
 ## Token Requirements
 
 ### Channel Advisor
+
 * APPLICATION_ID
 * SHARED_SECRET
 * REFRESH_TOKEN
 
 ### SkuVault
+
 * USER_TOKEN
 * TENANT_TOKEN
 
@@ -37,101 +41,654 @@ The API will then return a JSON response with the results of the import.
 ## API Endpoints Notes
 
 ### /createProducts
+
 * Heavy Throttling
     * 5 requests per minute
 * 100 items per request
 * Body (Bold are required)
-  * Items
-    * **Sku**
-    * Description
-    * Short Description
-    * Long Description
-    * **Classification**
-    * **Supplier**
-    * **Brand**
-    * Code
-    * PartNumber
-    * Cost
-    * Sale Price
-    * Retail Price
-    * Weight
-    * WeightUnit
-    * VariationParentSku
-    * ReorderPoint
-    * MinimumOrderQuantity
-    * MinimumOrderQuantityInfo
-    * Note
-    * Statuses
-    * Pictures
-    * AllowCreateAp
-    * SupplierInfo
-    * IsSerialized
-    * Client
-    * IsLotted
-    * LotPriority
-  * **Tenant Token**
-  * **User Token**
+    * Items
+        * **Sku**
+        * Description
+        * Short Description
+        * Long Description
+        * **Classification**
+        * **Supplier**
+        * **Brand**
+        * Code
+        * PartNumber
+        * Cost
+        * Sale Price
+        * Retail Price
+        * Weight
+        * WeightUnit
+        * VariationParentSku
+        * ReorderPoint
+        * MinimumOrderQuantity
+        * MinimumOrderQuantityInfo
+        * Note
+        * Statuses
+        * Pictures
+        * AllowCreateAp
+        * SupplierInfo
+        * IsSerialized
+        * Client
+        * IsLotted
+        * LotPriority
+    * **Tenant Token**
+    * **User Token**
 * Responses all have (Status and Error Properties)
 
-  * 200
-    * Success
-  * 202
-    * Partial Success
-  * 400
-    * Bad Request
+    * 200
+        * Success
+    * 202
+        * Partial Success
+    * 400
+        * Bad Request
 
 ---
 
+### /Products
 
-
-### /ProductUpload
-* max rate limit is 60 files per hour
-* max file size is 128MB
-* That works out to roughly one request per minute.
-
+* Max Rate Limit 2000 requests per minute
+* 1 item per request
+* 9 calls per sku
+* Theoretical throughput = 222 skus per minute
 
 ### Expected Request Body
 
 ```json
-{   
-    "items":[
-        {
-            "id": 7686,
-            "item_name": "ALLEN BRADLEY 0-A16",
-            "part_number": "0-A16",
-            "brand": "ALLEN BRADLEY",
-            "description": "DISCONTINUED BY MANUFACTURER, COIL, 550 VAC, 60 HZ, SCREW TERMINAL",
-            "item_category": "COIL",
-            "weight": "0.12 lbs",
-            "estimated_value": "Not Listed",
-            "authorized_distr_brokerage_price": "Not Listed",
-            "original_packaging_price": 137,
-            "radwell_packaging_price": 119,
-            "refurbished_price": 110,
-            "repair_price": "Not Listed",
-            "last_price_update": "3/17/2021",
-            "link": "http://www.radwell.com/Buy/ALLEN%20BRADLEY/ALLEN%20BRADLEY/0-A16",
-            "flagged": 0,
-            "lister_sku": 1083495,
-            "apn": "Not Listed",
-            "suggested_category": "COIL",
-            "sigma_category": "Coil",
-            "sigma_sku": "NULL",
-            "sigma_part_number": "NULL",
-            "approval_time": "NULL",
-            "user_who_approved": "NULL",
-            "inventory_sku": 244753,
-            "series": "NULL",
-            "source": "NULL"
-        }
-    ],
-    "tokens":{
-        "clientid": "string",
-        "clientsecret": "string",
-        "refreshtoken": "string",
-        "TenantToken": "string",
-        "UserToken": "string"
+{
+  "items": [
+    {
+      "item_name": "ALLEN BRADLEY 0-A16",
+      "lister_sku": 1083495,
+      "part_number": "0-A16",
+      "brand": "ALLEN BRADLEY",
+      "description": "DISCONTINUED BY MANUFACTURER, COIL, 550 VAC, 60 HZ, SCREW TERMINAL",
+      "suggested_category": "COIL",
+      "sigma_category": "Coil",
+      "weight": "0.12 lbs",
+      "link": "http://www.radwell.com/Buy/ALLEN%20BRADLEY/ALLEN%20BRADLEY/0-A16",
+      "apn": "Not Listed",
+      "series": "NULL",
+      "sigma_old_sku": "NULL",
+      "sigma_old_part_number": "NULL",
+      "estimated_value": "Not Listed",
+      "authorized_distr_brokerage_price": "Not Listed",
+      "original_packaging_price": 137,
+      "radwell_packaging_price": 119,
+      "refurbished_price": 110,
+      "repair_price": "Not Listed",
+      "last_price_update": "3/17/2021",
+      "flagged": 0,
+      "approval_time": "NULL",
+      "user_who_approved": "NULL",
+      "inventory_sku": 244753,
+      "source": "NULL"
     }
+  ],
+  "tokens": {
+    "clientid": "string",
+    "clientsecret": "string",
+    "refreshtoken": "string",
+    "TenantToken": "string",
+    "UserToken": "string"
+  }
 }
 
+```
+
+### Success Response
+
+```json
+
+SIGMA Group
+
+
+Search
+New layout
+
+Use up and down arrow keys to navigate
+Message
+Search conversations
+ALL
+Brandon, Randa
+
+3
+The end point also returns "results"
+thats gives the completed skus back as well
+
+Brandon Weisman
+11:15 AM
+Yeah, saw that earlier and have been working on adapting that structure for what error handling I'll have to do
+
+Michael Walker
+shared a snippet
+11: 23 AM
+Example bad path ( final )
+{
+"badSkus": [
+{
+"Sku": "520807",
+"ErrorMessage": "SKU already exists.\n",
+"FailedAt": "ChannelAdvisorParentImport"
+}
+],
+"results": []
+}
+1
+{
+2
+"badSkus": [
+3
+{
+4
+"Sku": "520807",
+5
+"ErrorMessage": "SKU already exists.\n",
+6
+"FailedAt": "ChannelAdvisorParentImport"
+7
+}
+8
+],
+9
+"results": []
+10
+}
+10 Lines
+Expand
+
+Michael Walker
+shared a note
+11: 25 AM
+Example success
+{"badSkus": [], "results": [{"@odata.context": "https://api.channeladvisor.com/v1/$metadata#Products/$entity", "ID": 5998470, "ProfileID": 1204534...
+
+Randa Doleh
+11: 31 AM
+Great job guys!
+
+
+
+
+
+No pins yet
+Pin information and it will appear here so that you can reference it later.
+You have dropped the item. You have moved the item from position 2 to position 2
+
+Michael Walker
+
+11: 25 AM
+Example success
+Normal
+
+Text format menu, Normal
+{
+  "badSkus": [],
+  "results": [
+  {
+  "@odata.context": "https://api.channeladvisor.com/v1/$metadata#Products/$entity",
+  "ID": 5998470,
+  "ProfileID": 12045347,
+  "CreateDateUtc": null,
+  "UpdateDateUtc": null,
+  "QuantityUpdateDateUtc": null,
+  "IsAvailableInStore": null,
+  "IsBlocked": null,
+  "IsBlockedFromAdvertising": null,
+  "IsExternalQuantityBlocked": null,
+  "InfiniteQuantity": null,
+  "BlockComment": null,
+  "BlockedDateUtc": null,
+  "BlockedFromAdvertisingDateUtc": null,
+  "ReceivedDateUtc": null,
+  "LastSaleDateUtc": null,
+  "ASIN": null,
+  "Brand": "SIEMENS",
+  "Condition": null,
+  "Description": "STARTER 27AMP 600VAC 220/240V COIL NEMA SIZE1",
+  "EAN": null,
+  "FlagDescription": null,
+  "Flag": "GreenFlag",
+  "HarmonizedCode": null,
+  "ISBN": null,
+  "Manufacturer": null,
+  "MPN": "SXL112W",
+  "ShortDescription": null,
+  "Sku": "520807-3",
+  "Subtitle": null,
+  "TaxProductCode": null,
+  "Title": "SIEMENS SXL112W Motor Starter",
+  "UPC": null,
+  "WarehouseLocation": null,
+  "Warranty": null,
+  "MultipackQuantity": null,
+  "Height": null,
+  "Length": null,
+  "Width": null,
+  "Weight": 6.62,
+  "Cost": null,
+  "Margin": null,
+  "RetailPrice": 90.99,
+  "StartingPrice": null,
+  "ReservePrice": null,
+  "BuyItNowPrice": null,
+  "StorePrice": null,
+  "SecondChancePrice": null,
+  "MinPrice": null,
+  "MaxPrice": null,
+  "EstimatedShippingCost": null,
+  "SupplierName": null,
+  "SupplierCode": null,
+  "SupplierPO": null,
+  "Classification": "Motor Starter",
+  "IsDisplayInStore": null,
+  "StoreTitle": null,
+  "StoreDescription": null,
+  "BundleType": "None",
+  "ProductType": "Item",
+  "TotalAvailableQuantity": null,
+  "OpenAllocatedQuantity": 0,
+  "OpenAllocatedQuantityPooled": 0,
+  "PendingCheckoutQuantity": 0,
+  "PendingCheckoutQuantityPooled": 0,
+  "PendingPaymentQuantity": 0,
+  "PendingPaymentQuantityPooled": 0,
+  "PendingShipmentQuantity": 0,
+  "PendingShipmentQuantityPooled": 0,
+  "TotalQuantity": null,
+  "TotalQuantityPooled": null,
+  "QuantitySoldLast7Days": null,
+  "QuantitySoldLast14Days": null,
+  "QuantitySoldLast30Days": null,
+  "QuantitySoldLast60Days": null,
+  "QuantitySoldLast90Days": null,
+  "IsParent": false,
+  "IsInRelationship": true,
+  "CopyToChildren": null,
+  "CopyToAliases": null,
+  "ParentProductID": 5998467,
+  "ParentSku": null,
+  "RelationshipName": null,
+  "VaryBy": null,
+  "AliasType": "None",
+  "ReferenceSku": null,
+  "ReferenceProductID": null
+  },
+
+  {
+  "@odata.context": "https://api.channeladvisor.com/v1/$metadata#Products/$entity",
+  "ID": 5998468,
+  "ProfileID": 12045347,
+  "CreateDateUtc": null,
+  "UpdateDateUtc": null,
+  "QuantityUpdateDateUtc": null,
+  "IsAvailableInStore": null,
+  "IsBlocked": null,
+  "IsBlockedFromAdvertising": null,
+  "IsExternalQuantityBlocked": null,
+  "InfiniteQuantity": null,
+  "BlockComment": null,
+  "BlockedDateUtc": null,
+  "BlockedFromAdvertisingDateUtc": null,
+  "ReceivedDateUtc": null,
+  "LastSaleDateUtc": null,
+  "ASIN": null,
+  "Brand": "SIEMENS",
+  "Condition": null,
+  "Description": "STARTER 27AMP 600VAC 220/240V COIL NEMA SIZE1",
+  "EAN": null,
+  "FlagDescription": null,
+  "Flag": "GreenFlag",
+  "HarmonizedCode": null,
+  "ISBN": null,
+  "Manufacturer": null,
+  "MPN": "SXL112W",
+  "ShortDescription": null,
+  "Sku": "520807-1",
+  "Subtitle": null,
+  "TaxProductCode": null,
+  "Title": "SIEMENS SXL112W Motor Starter",
+  "UPC": null,
+  "WarehouseLocation": null,
+  "Warranty": null,
+  "MultipackQuantity": null,
+  "Height": null,
+  "Length": null,
+  "Width": null,
+  "Weight": 6.62,
+  "Cost": null,
+  "Margin": null,
+  "RetailPrice": 162.99,
+  "StartingPrice": null,
+  "ReservePrice": null,
+  "BuyItNowPrice": null,
+  "StorePrice": null,
+  "SecondChancePrice": null,
+  "MinPrice": null,
+  "MaxPrice": null,
+  "EstimatedShippingCost": null,
+  "SupplierName": null,
+  "SupplierCode": null,
+  "SupplierPO": null,
+  "Classification": "Motor Starter",
+  "IsDisplayInStore": null,
+  "StoreTitle": null,
+  "StoreDescription": null,
+  "BundleType": "None",
+  "ProductType": "Item",
+  "TotalAvailableQuantity": null,
+  "OpenAllocatedQuantity": 0,
+  "OpenAllocatedQuantityPooled": 0,
+  "PendingCheckoutQuantity": 0,
+  "PendingCheckoutQuantityPooled": 0,
+  "PendingPaymentQuantity": 0,
+  "PendingPaymentQuantityPooled": 0,
+  "PendingShipmentQuantity": 0,
+  "PendingShipmentQuantityPooled": 0,
+  "TotalQuantity": null,
+  "TotalQuantityPooled": null,
+  "QuantitySoldLast7Days": null,
+  "QuantitySoldLast14Days": null,
+  "QuantitySoldLast30Days": null,
+  "QuantitySoldLast60Days": null,
+  "QuantitySoldLast90Days": null,
+  "IsParent": false,
+  "IsInRelationship": true,
+  "CopyToChildren": null,
+  "CopyToAliases": null,
+  "ParentProductID": 5998467,
+  "ParentSku": null,
+  "RelationshipName": null,
+  "VaryBy": null,
+  "AliasType": "None",
+  "ReferenceSku": null,
+  "ReferenceProductID": null
+  },
+  {
+  "@odata.context": "https://api.channeladvisor.com/v1/$metadata#Products/$entity",
+  "ID": 5998471,
+  "ProfileID": 12045347,
+  "CreateDateUtc": null,
+  "UpdateDateUtc": null,
+  "QuantityUpdateDateUtc": null,
+  "IsAvailableInStore": null,
+  "IsBlocked": null,
+  "IsBlockedFromAdvertising": null,
+  "IsExternalQuantityBlocked": null,
+  "InfiniteQuantity": null,
+  "BlockComment": null,
+  "BlockedDateUtc": null,
+  "BlockedFromAdvertisingDateUtc": null,
+  "ReceivedDateUtc": null,
+  "LastSaleDateUtc": null,
+  "ASIN": null,
+  "Brand": "SIEMENS",
+  "Condition": null,
+  "Description": "STARTER 27AMP 600VAC 220/240V COIL NEMA SIZE1",
+  "EAN": null,
+  "FlagDescription": null,
+  "Flag": "GreenFlag",
+  "HarmonizedCode": null,
+  "ISBN": null,
+  "Manufacturer": null,
+  "MPN": "SXL112W",
+  "ShortDescription": null,
+  "Sku": "520807-4",
+  "Subtitle": null,
+  "TaxProductCode": null,
+  "Title": "SIEMENS SXL112W Motor Starter",
+  "UPC": null,
+  "WarehouseLocation": null,
+  "Warranty": null,
+  "MultipackQuantity": null,
+  "Height": null,
+  "Length": null,
+  "Width": null,
+  "Weight": 6.62,
+  "Cost": null,
+  "Margin": null,
+  "RetailPrice": 60.99,
+  "StartingPrice": null,
+  "ReservePrice": null,
+  "BuyItNowPrice": null,
+  "StorePrice": null,
+  "SecondChancePrice": null,
+  "MinPrice": null,
+  "MaxPrice": null,
+  "EstimatedShippingCost": null,
+  "SupplierName": null,
+  "SupplierCode": null,
+  "SupplierPO": null,
+  "Classification": "Motor Starter",
+  "IsDisplayInStore": null,
+  "StoreTitle": null,
+  "StoreDescription": null,
+  "BundleType": "None",
+  "ProductType": "Item",
+  "TotalAvailableQuantity": null,
+  "OpenAllocatedQuantity": 0,
+  "OpenAllocatedQuantityPooled": 0,
+  "PendingCheckoutQuantity": 0,
+  "PendingCheckoutQuantityPooled": 0,
+  "PendingPaymentQuantity": 0,
+  "PendingPaymentQuantityPooled": 0,
+  "PendingShipmentQuantity": 0,
+  "PendingShipmentQuantityPooled": 0,
+  "TotalQuantity": null,
+  "TotalQuantityPooled": null,
+  "QuantitySoldLast7Days": null,
+  "QuantitySoldLast14Days": null,
+  "QuantitySoldLast30Days": null,
+  "QuantitySoldLast60Days": null,
+  "QuantitySoldLast90Days": null,
+  "IsParent": false,
+  "IsInRelationship": true,
+  "CopyToChildren": null,
+  "CopyToAliases": null,
+  "ParentProductID": 5998467,
+  "ParentSku": null,
+  "RelationshipName": null,
+  "VaryBy": null,
+  "AliasType": "None",
+  "ReferenceSku": null,
+  "ReferenceProductID": null
+  },
+  {
+  "@odata.context": "https://api.channeladvisor.com/v1/$metadata#Products/$entity",
+  "ID": 5998469,
+  "ProfileID": 12045347,
+  "CreateDateUtc": null,
+  "UpdateDateUtc": null,
+  "QuantityUpdateDateUtc": null,
+  "IsAvailableInStore": null,
+  "IsBlocked": null,
+  "IsBlockedFromAdvertising": null,
+  "IsExternalQuantityBlocked": null,
+  "InfiniteQuantity": null,
+  "BlockComment": null,
+  "BlockedDateUtc": null,
+  "BlockedFromAdvertisingDateUtc": null,
+  "ReceivedDateUtc": null,
+  "LastSaleDateUtc": null,
+  "ASIN": null,
+  "Brand": "SIEMENS",
+  "Condition": null,
+  "Description": "STARTER 27AMP 600VAC 220/240V COIL NEMA SIZE1",
+  "EAN": null,
+  "FlagDescription": null,
+  "Flag": "GreenFlag",
+  "HarmonizedCode": null,
+  "ISBN": null,
+  "Manufacturer": null,
+  "MPN": "SXL112W",
+  "ShortDescription": null,
+  "Sku": "520807-2",
+  "Subtitle": null,
+  "TaxProductCode": null,
+  "Title": "SIEMENS SXL112W Motor Starter",
+  "UPC": null,
+  "WarehouseLocation": null,
+  "Warranty": null,
+  "MultipackQuantity": null,
+  "Height": null,
+  "Length": null,
+  "Width": null,
+  "Weight": 6.62,
+  "Cost": null,
+  "Margin": null,
+  "RetailPrice": 124.99,
+  "StartingPrice": null,
+  "ReservePrice": null,
+  "BuyItNowPrice": null,
+  "StorePrice": null,
+  "SecondChancePrice": null,
+  "MinPrice": null,
+  "MaxPrice": null,
+  "EstimatedShippingCost": null,
+  "SupplierName": null,
+  "SupplierCode": null,
+  "SupplierPO": null,
+  "Classification": "Motor Starter",
+  "IsDisplayInStore": null,
+  "StoreTitle": null,
+  "StoreDescription": null,
+  "BundleType": "None",
+  "ProductType": "Item",
+  "TotalAvailableQuantity": null,
+  "OpenAllocatedQuantity": 0,
+  "OpenAllocatedQuantityPooled": 0,
+  "PendingCheckoutQuantity": 0,
+  "PendingCheckoutQuantityPooled": 0,
+  "PendingPaymentQuantity": 0,
+  "PendingPaymentQuantityPooled": 0,
+  "PendingShipmentQuantity": 0,
+  "PendingShipmentQuantityPooled": 0,
+  "TotalQuantity": null,
+  "TotalQuantityPooled": null,
+  "QuantitySoldLast7Days": null,
+  "QuantitySoldLast14Days": null,
+  "QuantitySoldLast30Days": null,
+  "QuantitySoldLast60Days": null,
+  "QuantitySoldLast90Days": null,
+  "IsParent": false,
+  "IsInRelationship": true,
+  "CopyToChildren": null,
+  "CopyToAliases": null,
+  "ParentProductID": 5998467,
+  "ParentSku": null,
+  "RelationshipName": null,
+  "VaryBy": null,
+  "AliasType": "None",
+  "ReferenceSku": null,
+  "ReferenceProductID": null
+  },
+  {
+  "@odata.context": "https://api.channeladvisor.com/v1/$metadata#Products/$entity",
+  "ID": 5998467,
+  "ProfileID": 12045347,
+  "CreateDateUtc": null,
+  "UpdateDateUtc": null,
+  "QuantityUpdateDateUtc": null,
+  "IsAvailableInStore": null,
+  "IsBlocked": null,
+  "IsBlockedFromAdvertising": null,
+  "IsExternalQuantityBlocked": null,
+  "InfiniteQuantity": null,
+  "BlockComment": null,
+  "BlockedDateUtc": null,
+  "BlockedFromAdvertisingDateUtc": null,
+  "ReceivedDateUtc": null,
+  "LastSaleDateUtc": null,
+  "ASIN": null,
+  "Brand": "SIEMENS",
+  "Condition": null,
+  "Description": "STARTER 27AMP 600VAC 220/240V COIL NEMA SIZE1",
+  "EAN": null,
+  "FlagDescription": null,
+  "Flag": "GreenFlag",
+  "HarmonizedCode": null,
+  "ISBN": null,
+  "Manufacturer": null,
+  "MPN": "SXL112W",
+  "ShortDescription": null,
+  "Sku": "520807",
+  "Subtitle": null,
+  "TaxProductCode": null,
+  "Title": "SIEMENS SXL112W Motor Starter",
+  "UPC": null,
+  "WarehouseLocation": null,
+  "Warranty": null,
+  "MultipackQuantity": null,
+  "Height": null,
+  "Length": null,
+  "Width": null,
+  "Weight": 6.62,
+  "Cost": null,
+  "Margin": null,
+  "RetailPrice": null,
+  "StartingPrice": null,
+  "ReservePrice": null,
+  "BuyItNowPrice": null,
+  "StorePrice": null,
+  "SecondChancePrice": null,
+  "MinPrice": null,
+  "MaxPrice": null,
+  "EstimatedShippingCost": null,
+  "SupplierName": null,
+  "SupplierCode": null,
+  "SupplierPO": null,
+  "Classification": "Motor Starter",
+  "IsDisplayInStore": null,
+  "StoreTitle": null,
+  "StoreDescription": null,
+  "BundleType": "None",
+  "ProductType": "Item",
+  "TotalAvailableQuantity": null,
+  "OpenAllocatedQuantity": 0,
+  "OpenAllocatedQuantityPooled": 0,
+  "PendingCheckoutQuantity": 0,
+  "PendingCheckoutQuantityPooled": 0,
+  "PendingPaymentQuantity": 0,
+  "PendingPaymentQuantityPooled": 0,
+  "PendingShipmentQuantity": 0,
+  "PendingShipmentQuantityPooled": 0,
+  "TotalQuantity": null,
+  "TotalQuantityPooled": null,
+  "QuantitySoldLast7Days": null,
+  "QuantitySoldLast14Days": null,
+  "QuantitySoldLast30Days": null,
+  "QuantitySoldLast60Days": null,
+  "QuantitySoldLast90Days": null,
+  "IsParent": true,
+  "IsInRelationship": true,
+  "CopyToChildren": null,
+  "CopyToAliases": null,
+  "ParentProductID": null,
+  "ParentSku": null,
+  "RelationshipName": null,
+  "VaryBy": null,
+  "AliasType": "None",
+  "ReferenceSku": null,
+  "ReferenceProductID": null
+  }
+]
+}
+
+```
+
+### Failure Response
+
+```json
+{
+  "badSkus": [
+    {
+      "Sku": "520807",
+      "ErrorMessage": "SKU already exists.\n",
+      "FailedAt": "ChannelAdvisorParentImport"
+    }
+  ],
+  "results": []
+}
 ```

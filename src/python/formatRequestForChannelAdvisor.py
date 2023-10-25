@@ -2,8 +2,6 @@ from csv import writer
 import json
 import sys
 
-
-print('First param:'+sys.argv[1]+'#')
 with open("src\json\specialcharacters.json") as special:
     dataspecial = json.load(special)
 
@@ -161,6 +159,7 @@ def append(rows):
                     writer_object = writer(f_object, delimiter="|")
                     # Pass the list as an argument into
                     # the writerow()
+                    print(List)
                     writer_object.writerow(List)
                     # Close the file object
                     f_object.close()
@@ -168,3 +167,4 @@ def append(rows):
                 counting = counting + 1
 
 append(dbrows)
+print("Done")

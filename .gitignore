@@ -1,6 +1,7 @@
 node_modules
 .idea
 ChannelAdvisorP1.csv
+/logs/*
 
 # Byte-compiled / optimized / DLL files
 pycache/
