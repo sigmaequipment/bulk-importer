@@ -113,7 +113,7 @@ class BackgroundTaskBulkImport(threading.Thread):
 
             #TODO set up request to Michael's endpoint and handle response
             headers = {}
-            importer_request = requests.post(url=Importer_URL, headers=headers, data=payload).json()
+            importer_request = requests.post(url=Importer_URL, headers=headers, data=payload, timeout=None).json()
             
             print(importer_request)
 
