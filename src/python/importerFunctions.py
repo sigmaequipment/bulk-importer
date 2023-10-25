@@ -18,10 +18,13 @@ def uploadFailedImports(failed_skus):
     #loop through all skus that returned an error, get data on those sku's from the approved table, and add those skus and respective data with that sku to the reimport table
     #TODO add cases for different errors
     for failure in failed_skus:
-        current_sku = int(failure["Sku"])
-        error_message = f"{failure['FailedAt']}: {failure['ErrorMessage']}"
+        current_sku = int((failure["Sku"]).split('-')[0])
+        #current_sku = int(failure["Sku"])
+        message_string = "".join(failure['ErrorMessages'])
+        error_message = f"{failure['FailedAt']}: {message_string}"
 
         print(f'{current_sku} being saved to reimport table')
+        #print(error_message)
 
         sku_query = requests.get(f'{PostgREST_Table_String}?select=item_name,series,source&inventory_sku=eq.{current_sku}').json()
 
