@@ -146,7 +146,7 @@ def importFailedBrandItems(sku_list):
     items = []
 
     #list of skus that are going to be reimported
-    sku_list = []
+    sku_list_being_imported = []
 
     #loop through every sku that needs to be reimported
     for sku in sku_list:
@@ -190,9 +190,9 @@ def importFailedBrandItems(sku_list):
         items.append(item_to_dictionary)
 
         #append sku to sku list
-        sku_list.append(item['inventory_sku'])
+        sku_list_being_imported.append(item['inventory_sku'])
 
-    logToImporter(f"Reimporting {sku_list}")
+    logToImporter(f"Reimporting {sku_list_being_imported}")
 
     #tokens if there are more than one item to be imported, uses "BSA" credentials
     if (len(items) > 1):
@@ -219,6 +219,11 @@ def importFailedBrandItems(sku_list):
     #send request to Michael's endpoint
     headers = {"Content-Type": "application/json"}
     importer_request = requests.post(url=Importer_URL, headers=headers, data=payload, timeout=None).json()
+
+    if (importer_request["badSkus"] != []):
+        logToImporter("There was a error with the import")
+    else:
+        logToImporter("Succesful Import")
 
     #return errors
     return importer_request["badSkus"]
