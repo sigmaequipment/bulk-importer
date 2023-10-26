@@ -1,5 +1,6 @@
 import requests
 import json
+from importerLogging import logToImporter
 
 #connection string for the PostgREST API to access the table needed to import a new item
 PostgREST_Table_String = "http://10.100.100.42:8390/approved_templates"
@@ -25,7 +26,7 @@ def skuErrorHandler(failed_skus):
     #save skus that failed original import to the reimport table and return skus that need a brand created
     brand_reimport_list = uploadFailedImports(failed_skus, create_brands_bool=True)
 
-    print(f"brand list: {brand_reimport_list}")
+    #logToImporter(f"brand list: {brand_reimport_list}")
 
     if (brand_reimport_list != []):
         #create brands in SV
@@ -52,8 +53,6 @@ def uploadFailedImports(failed_skus, create_brands_bool):
     saved_sku_list = []
     brand_reimport_list = []
 
-    print(failed_skus)
-
     #loop through all skus that returned an error, get data on those sku's from the approved table, and add those skus and respective data with that sku to the reimport table
     for failure in failed_skus:
         current_sku = int((failure["Sku"]).split('-')[0])
@@ -70,14 +69,16 @@ def uploadFailedImports(failed_skus, create_brands_bool):
         if (current_sku in saved_sku_list):
             continue
 
+        logToImporter(f"{current_sku} failed its import")
+
         #get data on the sku to be saved
         sku_query = requests.get(f'{PostgREST_Table_String}?select=item_name,series,source&inventory_sku=eq.{current_sku}').json()
 
         if (sku_query == []):
-            print(f"{current_sku} not being saved")
+            logToImporter(f"{current_sku} not being saved to reimport table")
             continue
 
-        print(f'{current_sku} being saved to reimport table')
+        logToImporter(f'{current_sku} being saved to reimport table')
 
         #init item for reimport table
         current_item = sku_query[0]
@@ -92,7 +93,9 @@ def uploadFailedImports(failed_skus, create_brands_bool):
         #post to API
         reimport_table_response = requests.post(url=reimport_table, headers=headers, data=payload)
 
-        print(reimport_table_response)
+        logToImporter(f"Reimport table response: {reimport_table_response}")
+
+        saved_sku_list.append(current_sku)
     
     return brand_reimport_list
 
@@ -106,7 +109,7 @@ def createBrands(sku_list):
     
     #loop through skus in list, get that item's brand, and attempt to create that brand in SV
     for sku in sku_list:
-        sku_query = requests.get(f'{PostgREST_Table_String}?select=brand,user_who_approved&inventory_sku=eq.{sku}').json()
+        sku_query = requests.get(f'{PostgREST_Table_String}?select=brand,user_who_approved&inventory_sku=eq.{sku}').json()[0]
     
         #brand was recently created
         if (sku_query['brand'] in created_brand_list):
@@ -115,21 +118,24 @@ def createBrands(sku_list):
         #init content for SV brand creation call
         brandURL = "https://app.skuvault.com/api/products/createBrands"
         headers = {"Content-Type": "application/json", "Accept": "application/json"}
-        payload = {
+        payload = json.dumps({
             "Brands": {"Name": f"{sku_query['brand']}"},
             "TenantToken": tenanttoken[sku_query["user_who_approved"]]["TenantToken"],
             "UserToken": tenanttoken[sku_query["user_who_approved"]]["UserToken"]
-        }
+        }, indent=4, default=str)
+
+        logToImporter(f"Creating Brand: {sku_query['brand']}")
 
         #make request to create brand
         response = requests.post(brandURL, data=payload, headers=headers)
-        print(f"create brand response: {response}")
+        
+        logToImporter(f"Create brand response: {response.json()}")
         
         #brand successfully created
         if (response.status_code == 200):
-            created_brand_list.apppend(sku_query['brand'])
+            created_brand_list.append(sku_query['brand'])
 
-            print(f"Added {sku_query['brand']} to brands in SKUvault")
+            logToImporter(f"Added {sku_query['brand']} to brands in SKUvault")
 
 
 #---------------------------------------------------------------------------------------------------------------
@@ -138,6 +144,9 @@ def importFailedBrandItems(sku_list):
     
     #list to store items that will be part of payload
     items = []
+
+    #list of skus that are going to be reimported
+    sku_list = []
 
     #loop through every sku that needs to be reimported
     for sku in sku_list:
@@ -180,7 +189,10 @@ def importFailedBrandItems(sku_list):
         #append item to list
         items.append(item_to_dictionary)
 
-    print(f"Reimporting {len(items)} items")
+        #append sku to sku list
+        sku_list.append(item['inventory_sku'])
+
+    logToImporter(f"Reimporting {sku_list}")
 
     #tokens if there are more than one item to be imported, uses "BSA" credentials
     if (len(items) > 1):
@@ -207,8 +219,6 @@ def importFailedBrandItems(sku_list):
     #send request to Michael's endpoint
     headers = {"Content-Type": "application/json"}
     importer_request = requests.post(url=Importer_URL, headers=headers, data=payload, timeout=None).json()
-
-    print(importer_request)
 
     #return errors
     return importer_request["badSkus"]

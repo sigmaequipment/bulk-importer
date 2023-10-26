@@ -3,14 +3,9 @@ from datetime import date
 import requests
 import threading
 import time
-from importerErrorHandling import skuErrorHandler
+from importerErrorHandling import skuErrorHandler, PostgREST_Table_String, Importer_URL
+from importerLogging import logToImporter
 
-
-#connection string for the PostgREST API to access the table needed to import a new item
-PostgREST_Table_String = "http://10.100.100.42:8390/approved_templates"
-
-#Connection string to the JS importer
-Importer_URL = "http://10.100.100.51:3005/import"
 
 #load the user and tenant token json
 with open('src/json/SkuVaultTenantandUserTokens.json','r+') as tenant:
@@ -57,14 +52,14 @@ class BackgroundTaskSingleImport(threading.Thread):
 
             #if the queury returns an empty list wait 30s and then look again for more items
             if single_import_query == []:
-                print("Waiting 30 seconds")
+                logToImporter("Single waiting 30 seconds")
                 time.sleep(30)
                 continue
 
             #get the item from the query
             item = single_import_query[0]
 
-            print(f"Importing {item['inventory_sku']}")
+            logToImporter(f"Importing {item['inventory_sku']}")
 
             #convert data from query to dictionary
             item_to_dictionary = {
@@ -116,15 +111,17 @@ class BackgroundTaskSingleImport(threading.Thread):
             #send request to Michael's endpoint
             headers = {"Content-Type": "application/json"}
             importer_request = requests.post(url=Importer_URL, headers=headers, data=payload, timeout=None).json()
-            
-            print(f"{importer_request}")
 
             #get list of skus that returned errors
             importer_request_errors =  importer_request["badSkus"]
 
             #upload the list of failed skus to the reimport table
             if (importer_request_errors != []):
+                logToImporter("There was a error with the import")
                 skuErrorHandler(importer_request_errors)
+
+            else:
+                logToImporter("Succesful Import")
 
             #update the json storing the last imported sku
             updateSingleSKUFile(sku)

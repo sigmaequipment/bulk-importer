@@ -3,14 +3,9 @@ from datetime import date
 import requests
 import threading
 import time
-from importerErrorHandling import skuErrorHandler
+from importerErrorHandling import skuErrorHandler, PostgREST_Table_String, Importer_URL
+from importerLogging import logToImporter
 
-
-#connection string for the PostgREST API to access the table needed to import a new item
-PostgREST_Table_String = "http://10.100.100.42:8390/approved_templates"
-
-#Connection string to the JS importer
-Importer_URL = "http://10.100.100.51:3005/import"
 
 #load the user and tenant token json
 with open('src/json/SkuVaultTenantandUserTokens.json','r+') as tenant:
@@ -46,6 +41,9 @@ class BackgroundTaskBulkImport(threading.Thread):
             #list to store items that will be part of payload
             items = []
 
+            #list of skus to be imported
+            sku_list = []
+
             #sku of item to be imported
             sku = 0
             
@@ -57,11 +55,11 @@ class BackgroundTaskBulkImport(threading.Thread):
 
             #if the queury returns an empty list wait 30s and then look again for more items
             if bulk_import_query == []:
-                print("Waiting 30 seconds")
+                logToImporter("Bulk waiting 30 seconds")
                 time.sleep(30)
                 continue
             
-            print(f"Importing {len(bulk_import_query)} items")
+            logToImporter(f"Importing {len(bulk_import_query)} items")
 
             #Loop through all the returned items
             for item in bulk_import_query:
@@ -98,8 +96,13 @@ class BackgroundTaskBulkImport(threading.Thread):
                 #append item to list
                 items.append(item_to_dictionary)
 
+                #append sku to list
+                sku_list.append(item["inventory_sku"])
+
                 #save sku of item to be saved later
                 sku = item["inventory_sku"]
+
+            logToImporter(f"Importing {sku_list[0]} through {sku_list[(len(sku_list) - 1)]}")
 
             #set up dictionary for tokens
             tokens = {
@@ -116,15 +119,17 @@ class BackgroundTaskBulkImport(threading.Thread):
             #send request to Michael's endpoint
             headers = {"Content-Type": "application/json"}
             importer_request = requests.post(url=Importer_URL, headers=headers, data=payload, timeout=None).json()
-            
-            print(f"{importer_request}")
 
             #get list of skus that returned errors
             importer_request_errors =  importer_request["badSkus"]
 
             #upload the list of failed skus to the reimport table
             if (importer_request_errors != []):
+                logToImporter("There was a error with the import")
                 skuErrorHandler(importer_request_errors)
+
+            else:
+                logToImporter("Succesful Import")
             
             #update the json storing the last imported sku
             updateBulkSKUFile(sku)
