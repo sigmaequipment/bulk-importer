@@ -3,7 +3,7 @@ from datetime import date
 import requests
 import threading
 import time
-from importerFunctions import uploadFailedImports
+from importerErrorHandling import skuErrorHandler
 
 
 #connection string for the PostgREST API to access the table needed to import a new item
@@ -29,6 +29,7 @@ with open('src/json/bulkSKU.json', 'r+') as skuFile:
     lastImport = json.load(skuFile)
 
 
+#---------------------------------------------------------------------------------------------------------------
 #modify the file that holds the sku of the last item that was imported via the bulk importer
 def updateBulkSKUFile(sku):
     lastImport["bulkSKU"] = sku
@@ -36,6 +37,7 @@ def updateBulkSKUFile(sku):
         json.dump(lastImport, currentSKU)
 
 
+#---------------------------------------------------------------------------------------------------------------
 #Background task to collect non user created items to be sent to the bulk importer
 class BackgroundTaskBulkImport(threading.Thread):
     def getItemsForImport(self,*args,**kwargs):
@@ -111,24 +113,24 @@ class BackgroundTaskBulkImport(threading.Thread):
             #set up payload to be sent to API 
             payload = json.dumps({"items" : items, "tokens" : tokens}, indent=4, default=str)
 
-            #TODO set up request to Michael's endpoint and handle response
+            #send request to Michael's endpoint
             headers = {"Content-Type": "application/json"}
             importer_request = requests.post(url=Importer_URL, headers=headers, data=payload, timeout=None).json()
             
-            print(importer_request)
+            print(f"{importer_request}")
 
             #get list of skus that returned errors
-            #TODO check with Michael on recieving errors
             importer_request_errors =  importer_request["badSkus"]
 
             #upload the list of failed skus to the reimport table
             if (importer_request_errors != []):
-                uploadFailedImports(importer_request_errors)
+                skuErrorHandler(importer_request_errors)
             
             #update the json storing the last imported sku
             updateBulkSKUFile(sku)
 
 
+#---------------------------------------------------------------------------------------------------------------
 #What runs when the script is directly called
 if __name__ == "__main__":
     obj = BackgroundTaskBulkImport()
