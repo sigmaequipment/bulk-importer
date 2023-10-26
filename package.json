@@ -29,7 +29,8 @@
   },
   "nodemonConfig": {
     "ignore": [
-      "src/json/**/*"
+      "src/json/**/*",
+      "logs/*"
     ]
   }
 }
