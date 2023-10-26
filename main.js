@@ -42,6 +42,16 @@ const incomingPayloadSchema ={
     }
 }
 
+fastify.post("/log",async(req,reply)=>{
+    const body = req.body;
+    let message = body.message;
+    if(!message){
+        reply.send("No message found ")
+    }
+    log(message);
+    reply.send("Message Logged");
+})
+
 fastify.post('/import',incomingPayloadSchema, async (request,reply) => {
     const {body:{items,tokens}} = request;
     let length = items.length;
