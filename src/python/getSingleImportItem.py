@@ -3,14 +3,9 @@ from datetime import date
 import requests
 import threading
 import time
-from importerFunctions import uploadFailedImports
+from importerErrorHandling import skuErrorHandler, PostgREST_Table_String, Importer_URL
+from importerLogging import logToImporter
 
-
-#connection string for the PostgREST API to access the table needed to import a new item
-PostgREST_Table_String = "http://10.100.100.42:8390/approved_templates"
-
-#Connection string to the JS importer
-Importer_URL = "http://10.100.100.51:3005/import"
 
 #load the user and tenant token json
 with open('src/json/SkuVaultTenantandUserTokens.json','r+') as tenant:
@@ -29,6 +24,7 @@ with open('src/json/singleSKU.json', 'r+') as skuFile:
     lastImport = json.load(skuFile)
 
 
+#---------------------------------------------------------------------------------------------------------------
 #modify the file that holds the sku of the last item that was imported via the single importer
 def updateSingleSKUFile(sku):
     lastImport["singleSKU"] = sku
@@ -36,6 +32,7 @@ def updateSingleSKUFile(sku):
         json.dump(lastImport, currentSKU)
 
 
+#---------------------------------------------------------------------------------------------------------------
 #Background task to collect non user created items to be sent to the single importer
 class BackgroundTaskSingleImport(threading.Thread):
     def getItemsForImport(self,*args,**kwargs):
@@ -55,14 +52,14 @@ class BackgroundTaskSingleImport(threading.Thread):
 
             #if the queury returns an empty list wait 30s and then look again for more items
             if single_import_query == []:
-                print("Waiting 30 seconds")
+                logToImporter("Single waiting 30 seconds")
                 time.sleep(30)
                 continue
 
             #get the item from the query
             item = single_import_query[0]
 
-            print(f"Importing {item['inventory_sku']}")
+            logToImporter(f"Importing {item['inventory_sku']}")
 
             #convert data from query to dictionary
             item_to_dictionary = {
@@ -111,24 +108,26 @@ class BackgroundTaskSingleImport(threading.Thread):
             #set up payload to be sent to API 
             payload = json.dumps({"items" : items, "tokens" : tokens}, indent=4, default=str)
             
-            #TODO set up request to Michael's endpoint and handle response
+            #send request to Michael's endpoint
             headers = {"Content-Type": "application/json"}
             importer_request = requests.post(url=Importer_URL, headers=headers, data=payload, timeout=None).json()
-            
-            print(importer_request)
 
             #get list of skus that returned errors
-            #TODO check with Michael on recieving errors
             importer_request_errors =  importer_request["badSkus"]
 
             #upload the list of failed skus to the reimport table
             if (importer_request_errors != []):
-                uploadFailedImports(importer_request_errors)
+                logToImporter("There was a error with the import")
+                skuErrorHandler(importer_request_errors)
+
+            else:
+                logToImporter("Succesful Import")
 
             #update the json storing the last imported sku
             updateSingleSKUFile(sku)
 
 
+#---------------------------------------------------------------------------------------------------------------
 #What runs when the script is directly called
 if __name__ == "__main__":
     obj = BackgroundTaskSingleImport()
