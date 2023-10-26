@@ -1,5 +1,6 @@
 import requests
 import json
+import time
 from importerLogging import logToImporter
 
 #connection string for the PostgREST API to access the table needed to import a new item
@@ -31,6 +32,9 @@ def skuErrorHandler(failed_skus):
     if (brand_reimport_list != []):
         #create brands in SV
         createBrands(brand_reimport_list)
+
+        #wait between creating brand and trying to reimport items
+        time.sleep(5)
 
         #reimport items that failed due to brands not being created, returns list of erros
         errors = importFailedBrandItems(brand_reimport_list)
