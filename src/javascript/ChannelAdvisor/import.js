@@ -37,15 +37,15 @@ function importProductToChannelAdvisor (access_token) {
          }
         // implement error logic here
          if(response?.Message === "The request is invalid."){
-             err(e);
+             err(response);
              rej(response);
          }
          if(response?.Message?.includes("SKU already exists")){
-             err(e);
+             err(response);
              rej(response);
          }
          if(response?.error){
-             err(e);
+             err(response);
              rej(response);
          }
          res(response);
