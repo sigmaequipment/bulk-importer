@@ -45,7 +45,12 @@ class Logger {
     writeToLog(message) {
         const date = new Date();
         const fileName = this.createFile();
-        const logMessage = `${this.usesTimestamp ? date.toDateString() : ""} ${message}\n`;
+        const hour = date.getHours();
+        const minute = date.getMinutes();
+        const second = date.getSeconds();
+        let timeStamp = `${date.toDateString()} ${hour}:${minute}:${second}`
+        const logMessage =
+            `${this.usesTimestamp ? timeStamp : ""} ${message}\n`;
         fs.appendFileSync(fileName, logMessage);
     }
     log =(...message)=> {
