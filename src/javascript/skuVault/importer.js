@@ -10,7 +10,6 @@ module.exports = function SkuVaultImporter(uploadFunction){
         log("The Responses From Sku Vault Are:",responses.map(({Status})=>Status))
         log("Checking For Errors")
         responses.forEach(({Status,Errors},i)=>{
-            log("Status",Status);
             Errors.forEach((error)=>{
                 error = uploadFunction.name.toLowerCase().includes("single") ? {Sku:payload[i].Sku,ErrorMessages:[error]} : {...error}
                 badSkus.push({...error,FailedAt:uploadFunction.name})
