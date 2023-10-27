@@ -41,7 +41,12 @@ const incomingPayloadSchema ={
           }
     }
 }
-
+fastify.get("/log",(req,reply)=>{
+    const date = new Date();
+    const fileName = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-log.log`;
+    let log = require('fs').readFileSync(`./logs/${fileName}`,'utf8');
+    reply.send(log);
+})
 fastify.post("/log",async(req,reply)=>{
     const body = req.body;
     let message = body.message;
@@ -103,7 +108,7 @@ fastify.post('/import',incomingPayloadSchema, async (request,reply) => {
     });
 });
 
-fastify.listen({port: 3005, host:"10.100.100.51"},(err,addr)=>{
+fastify.listen({port: 3005},(err,addr)=>{
     if(err){
         error(err)
         process.exit(1)
