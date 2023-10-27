@@ -22,6 +22,7 @@
     "decompress": "^4.2.1",
     "dotenv": "^16.3.1",
     "fastify": "^4.23.2",
+    "node-fetch": "^2.7.0",
     "nodejs-file-downloader": "^4.12.1",
     "sigma-logger": "^1.0.3"
   },
