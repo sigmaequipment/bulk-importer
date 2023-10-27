@@ -3,14 +3,9 @@ from datetime import date
 import requests
 import threading
 import time
-from importerFunctions import uploadFailedImports
+from importerErrorHandling import skuErrorHandler, PostgREST_Table_String, Importer_URL
+from importerLogging import logToImporter
 
-
-#connection string for the PostgREST API to access the table needed to import a new item
-PostgREST_Table_String = "http://10.100.100.42:8390/approved_templates"
-
-#Connection string to the JS importer
-Importer_URL = "http://10.100.100.51:3005/import"
 
 #load the user and tenant token json
 with open('src/json/SkuVaultTenantandUserTokens.json','r+') as tenant:
@@ -29,6 +24,7 @@ with open('src/json/bulkSKU.json', 'r+') as skuFile:
     lastImport = json.load(skuFile)
 
 
+#---------------------------------------------------------------------------------------------------------------
 #modify the file that holds the sku of the last item that was imported via the bulk importer
 def updateBulkSKUFile(sku):
     lastImport["bulkSKU"] = sku
@@ -36,6 +32,7 @@ def updateBulkSKUFile(sku):
         json.dump(lastImport, currentSKU)
 
 
+#---------------------------------------------------------------------------------------------------------------
 #Background task to collect non user created items to be sent to the bulk importer
 class BackgroundTaskBulkImport(threading.Thread):
     def getItemsForImport(self,*args,**kwargs):
@@ -43,6 +40,9 @@ class BackgroundTaskBulkImport(threading.Thread):
 
             #list to store items that will be part of payload
             items = []
+
+            #list of skus to be imported
+            sku_list = []
 
             #sku of item to be imported
             sku = 0
@@ -55,11 +55,11 @@ class BackgroundTaskBulkImport(threading.Thread):
 
             #if the queury returns an empty list wait 30s and then look again for more items
             if bulk_import_query == []:
-                print("Waiting 30 seconds")
+                logToImporter("Bulk waiting 30 seconds")
                 time.sleep(30)
                 continue
             
-            print(f"Importing {len(bulk_import_query)} items")
+            logToImporter(f"Importing {len(bulk_import_query)} items")
 
             #Loop through all the returned items
             for item in bulk_import_query:
@@ -96,8 +96,13 @@ class BackgroundTaskBulkImport(threading.Thread):
                 #append item to list
                 items.append(item_to_dictionary)
 
+                #append sku to list
+                sku_list.append(item["inventory_sku"])
+
                 #save sku of item to be saved later
                 sku = item["inventory_sku"]
+
+            logToImporter(f"Importing {sku_list[0]} through {sku_list[(len(sku_list) - 1)]}")
 
             #set up dictionary for tokens
             tokens = {
@@ -111,24 +116,26 @@ class BackgroundTaskBulkImport(threading.Thread):
             #set up payload to be sent to API 
             payload = json.dumps({"items" : items, "tokens" : tokens}, indent=4, default=str)
 
-            #TODO set up request to Michael's endpoint and handle response
+            #send request to Michael's endpoint
             headers = {"Content-Type": "application/json"}
             importer_request = requests.post(url=Importer_URL, headers=headers, data=payload, timeout=None).json()
-            
-            print(importer_request)
 
             #get list of skus that returned errors
-            #TODO check with Michael on recieving errors
             importer_request_errors =  importer_request["badSkus"]
 
             #upload the list of failed skus to the reimport table
             if (importer_request_errors != []):
-                uploadFailedImports(importer_request_errors)
+                logToImporter("There was a error with the import")
+                skuErrorHandler(importer_request_errors)
+
+            else:
+                logToImporter("Succesful Import")
             
             #update the json storing the last imported sku
             updateBulkSKUFile(sku)
 
 
+#---------------------------------------------------------------------------------------------------------------
 #What runs when the script is directly called
 if __name__ == "__main__":
     obj = BackgroundTaskBulkImport()
