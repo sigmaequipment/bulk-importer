@@ -3,7 +3,7 @@ const fsp = require('fs/promises');
 const ServerRequest = require('../serverRequester/serverRequester');
 const authorizeChannelAdvisor = require('./authorize');
 const channelAdvisorLimiter = require('../limiters/ChannelAdvisor');
-
+const {error:err} = require('../Logger/logger');
 
 
 
@@ -31,15 +31,21 @@ function importProductToChannelAdvisor (access_token) {
                     "content-type": "application/json"
                 },
                 body: JSON.stringify(product)
-         }).then((response) => response.json());
+         })
+         try {
+             response = await response.json();
+         } catch (e) {
+             response = await response.text();
+             err(e);
+         }
         // implement error logic here
-         if(response.Message === "The request is invalid."){
+         if(response?.Message === "The request is invalid."){
              rej(response);
          }
-         if(response.Message?.includes("SKU already exists")){
+         if(response?.Message?.includes("SKU already exists")){
              rej(response);
          }
-         if(response.error){
+         if(response?.error){
              rej(response);
          }
          res(response);
