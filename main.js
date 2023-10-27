@@ -109,6 +109,9 @@ fastify.post('/import',incomingPayloadSchema, async (request,reply) => {
     log(seperator)
     results = results.concat(completedItems);
     log(`The importer has finished importing ${results.length} items`)
+    if(filteredChannelAdvisorPayload.length < results.length){
+        log(`The importer has failed to import ${results.length - filteredChannelAdvisorPayload.length} items into Channel Advisor`)
+    }
     log(seperator)
     reply.send({badSkus,
         results
