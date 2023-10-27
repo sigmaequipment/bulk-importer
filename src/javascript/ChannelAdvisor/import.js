@@ -1,7 +1,4 @@
-const fs = require('fs');
-const fsp = require('fs/promises');
 const ServerRequest = require('../serverRequester/serverRequester');
-const authorizeChannelAdvisor = require('./authorize');
 const channelAdvisorLimiter = require('../limiters/ChannelAdvisor');
 const {error:err} = require('../Logger/logger');
 
