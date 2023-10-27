@@ -9,6 +9,11 @@ const SkuVaultImporter = require("./src/javascript/skuVault/importer");
 const channelAdvisorImport = require("./src/javascript/ChannelAdvisor/fullImport");
 const {log,error} = require("./src/javascript/Logger/logger");
 const splitPayload = require('./src/javascript/splitPayload/splitPayload');
+
+
+require("dotenv").config();
+
+
 const seperator = "------------------------------------"
 log(seperator)
 log("*** Bulk Importer (Beta) V1 ***");
@@ -47,6 +52,8 @@ fastify.get("/log",(req,reply)=>{
     let log = require('fs').readFileSync(`./logs/${fileName}`,'utf8');
     reply.send(log);
 })
+
+
 fastify.post("/log",async(req,reply)=>{
     const body = req.body;
     let message = body.message;
@@ -54,7 +61,7 @@ fastify.post("/log",async(req,reply)=>{
         reply.send("No message found ")
     }
     log(message);
-    reply.send("Message Logged");
+    reply.send({message});
 })
 
 fastify.post('/import',incomingPayloadSchema, async (request,reply) => {
@@ -108,7 +115,13 @@ fastify.post('/import',incomingPayloadSchema, async (request,reply) => {
     });
 });
 
-fastify.listen({port: 3005},(err,addr)=>{
+let serverOptions = {
+    port: 3005
+}
+if(process.env.HOST_ADDRESS){
+    serverOptions["host"] = process.env.HOST_ADDRESS
+}
+fastify.listen(serverOptions,(err,addr)=>{
     if(err){
         error(err)
         process.exit(1)
