@@ -28,9 +28,7 @@ async function channelAdvisorImport(channelAdvisorPayload,access_token,badSkus,c
 
     const flagPool = createPromisePool(async (url)=> fetch(url,{method: 'PATCH'}), 5);
     const flagResults = await flagPool.process(promises.flat())
-    log(`Finished Channel Advisor Flagging of ${parentResults.length} Items`)
-    const flagResponses = await Promise.all(flagResults.results.map(result=>result.json()));
-    log("The Responses From Channel Advisor Flagging Are:",flagResponses.map(({Status})=>Status))
+    log(`Flag Results are :  ${flagResults}`)
     let children = channelAdvisorPayload
         .filter(item=>!item.IsParent)
         .filter(({Sku})=>!badSkus.some(({Sku:badSku})=>badSku.includes(Sku.split("-")[0].trim())))
