@@ -4,6 +4,12 @@ const conditionsMap = {
     3: "SIGMA Certified Refurbished",
     4: "Used"
 }
+const labelMaps = {
+    1: "Never Used - Original Packaging",
+    2: "Never Used - SIGMA Packaging",
+    3: "SIGMA Certified Repaired and Tested",
+    4: "Previously Used - Untested"
+}
 function childrenFactory(parent,item){
     const{inventory_sku,original_packaging_price,radwell_packaging_price,refurbished_price} = item;
     return function createChild(price,condition){
@@ -41,5 +47,6 @@ function childrenFactory(parent,item){
 
 module.exports = {
     childrenFactory,
-    conditionsMap
+    conditionsMap,
+    labelMaps
 }

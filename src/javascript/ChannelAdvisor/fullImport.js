@@ -1,7 +1,7 @@
 const createPromisePool = require("../promisePool/promisePool");
-const {conditionsMap} = require("../createChildrenFactory/createChildrenFactory");
+const {labelMaps} = require("../createChildrenFactory/createChildrenFactory");
 const basicChannelAdvisorImport = require("./basicImport");
-const conditions = Object.values(conditionsMap);
+const conditions = Object.values(labelMaps);
 const {log} = require("../Logger/logger");
 const fetch = require("node-fetch");
 async function channelAdvisorImport(channelAdvisorPayload,access_token,badSkus,completedItems){
