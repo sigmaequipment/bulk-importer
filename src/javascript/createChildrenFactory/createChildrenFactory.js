@@ -25,19 +25,19 @@ function childrenFactory(parent,item){
             },
             {
                 "Name": "Randa's Automated Price",
-                "Value": `${price}`
+                "Value": `${price ? price : null}`
             },
             {
                 "Name" : "Market Price: SIGMA Packaging",
-                "Value" : String(radwell_packaging_price)
+                "Value" : String(radwell_packaging_price === 0 ? null : radwell_packaging_price)
             },
             {
                 "Name" : "Market Price: Refurbished",
-                "Value" : String(refurbished_price)
+                "Value" : String(refurbished_price === 0 ? null : refurbished_price)
             },
             {
                 "Name" : "Market Price: Original Packaging",
-                "Value" : String(original_packaging_price)
+                "Value" : String(original_packaging_price === 0 ? null : original_packaging_price)
             }
         ])
         return tempChild;

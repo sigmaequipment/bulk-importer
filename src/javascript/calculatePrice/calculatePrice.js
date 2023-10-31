@@ -18,7 +18,9 @@ const percentageMatrix = [
 ]
 
 const calculatePrices = (conditionCode, price) => {
-    if(price === undefined || price === null || price === '') return null;
+    console.log("HERE")
+    console.log(price)
+    if(price === undefined || price === null || price === '' || price === 0) return "NULL";
     let temp = parseInt(price);
     // last updated 10/30/23
     let priceCode;
