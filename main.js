@@ -65,57 +65,68 @@ fastify.post("/log",async(req,reply)=>{
 })
 
 fastify.post('/import',incomingPayloadSchema, async (request,reply) => {
-    const {body:{items,tokens}} = request;
+    const {body: {items, tokens}} = request;
     let length = items.length;
-    console.log(JSON.stringify(items,null,2))
+    console.log(JSON.stringify(items, null, 2))
     log(seperator)
     log(`Request To Start Import of ${length} Items`);
     const badSkus = [];
     const completedItems = [];
-    let {channelAdvisorPayload,skuVaultPayload} = await createPayloads(items);
-    log(`Finished Creating Payloads`)
-    log(`Sku Vault Payload Length: ${skuVaultPayload.length}`)
-    log(`Channel Advisor Payload Length: ${channelAdvisorPayload.length}`)
-    log(seperator)
-    log(`Starting Sku Vault Import of ${skuVaultPayload.length} Items`)
-    let uploadFunc;
-    if(length > 1) {
-        log("Bulk Import")
-        uploadFunc = uploadToSkuVaultBulk;
-        skuVaultPayload = splitPayload(skuVaultPayload)
-        console.log(skuVaultPayload)
-    }else{
-        log("Single Route")
-        uploadFunc = uploadToSkuVaultSingle;
-    }
-    await SkuVaultImporter(uploadFunc)(skuVaultPayload,tokens,badSkus)
-    log(`${badSkus.length} Failed at Sku Vault`)
-    // If A sku failed at the Sku Vault step, This filters it out of the Channel Advisor Payload,
-    // so we don't upload.js a bad sku to Channel Advisor
-    let filteredChannelAdvisorPayload = channelAdvisorPayload.filter(({Sku})=>!badSkus.some(({Sku:badSku})=>badSku.includes(Sku)))
-    if(filteredChannelAdvisorPayload.length === 0) return reply.send({badSkus});
-    log(seperator)
-    const access_token = await authorizeChannelAdvisor(tokens);
-    log(`Finished Authorizing Channel Advisor`)
-    log(seperator)
-    log(`Starting Channel Advisor Import of ${filteredChannelAdvisorPayload.length} Items`)
-    let results = await channelAdvisorImport(
-        filteredChannelAdvisorPayload,
-        access_token,
-        badSkus,
-        completedItems
+    let {channelAdvisorPayload, skuVaultPayload} = await createPayloads(items);
+    try {
+        log(`Finished Creating Payloads`)
+        log(`Sku Vault Payload Length: ${skuVaultPayload.length}`)
+        log(`Channel Advisor Payload Length: ${channelAdvisorPayload.length}`)
+        log(seperator)
+        log(`Starting Sku Vault Import of ${skuVaultPayload.length} Items`)
+        let uploadFunc;
+        if (length > 1) {
+            log("Bulk Import")
+            uploadFunc = uploadToSkuVaultBulk;
+            skuVaultPayload = splitPayload(skuVaultPayload)
+            console.log(skuVaultPayload)
+        } else {
+            log("Single Route")
+            uploadFunc = uploadToSkuVaultSingle;
+        }
+        await SkuVaultImporter(uploadFunc)(skuVaultPayload, tokens, badSkus)
+        log(`${badSkus.length} Failed at Sku Vault`)
+        // If A sku failed at the Sku Vault step, This filters it out of the Channel Advisor Payload,
+        // so we don't upload.js a bad sku to Channel Advisor
+        let filteredChannelAdvisorPayload = channelAdvisorPayload.filter(({Sku}) => !badSkus.some(({Sku: badSku}) => badSku.includes(Sku)))
+        if (filteredChannelAdvisorPayload.length === 0) return reply.send({badSkus});
+        log(seperator)
+        const access_token = await authorizeChannelAdvisor(tokens);
+        log(`Finished Authorizing Channel Advisor`)
+        log(seperator)
+        log(`Starting Channel Advisor Import of ${filteredChannelAdvisorPayload.length} Items`)
+        let results = await channelAdvisorImport(
+            filteredChannelAdvisorPayload,
+            access_token,
+            badSkus,
+            completedItems
         )
-    log(`Finished Channel Advisor Import`)
-    log(seperator)
-    results = results.concat(completedItems);
-    log(`The importer has finished importing ${results.length} items`)
-    if(filteredChannelAdvisorPayload.length < results.length){
-        log(`The importer has failed to import ${results.length - filteredChannelAdvisorPayload.length} items into Channel Advisor`)
+        log(`Finished Channel Advisor Import`)
+        log(seperator)
+        results = results.concat(completedItems);
+        log(`The importer has finished importing ${results.length} items`)
+        if (filteredChannelAdvisorPayload.length < results.length) {
+            log(`The importer has failed to import ${results.length - filteredChannelAdvisorPayload.length} items into Channel Advisor`)
+        }
+        log(seperator)
+        reply.send({
+            badSkus,
+            results
+        });
+    } catch (e) {
+        error("Error Importing")
+        error("The Error Is:",e)
+        console.log(e)
+        reply.send({
+            error: e,
+            badSkus: channelAdvisorPayload.map(({Sku}) => ({Sku, ErrorMessages: ["Error Importing"]}))
+        })
     }
-    log(seperator)
-    reply.send({badSkus,
-        results
-    });
 });
 
 let serverOptions = {
