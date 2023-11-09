@@ -48,7 +48,7 @@ const incomingPayloadSchema ={
 }
 fastify.get("/log",(req,reply)=>{
     const date = new Date();
-    const fileName = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-log.log`;
+    const fileName = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}-log.log`;
     let log = require('fs').readFileSync(`./logs/${fileName}`,'utf8');
     reply.send(log);
 })

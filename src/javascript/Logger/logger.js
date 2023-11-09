@@ -37,7 +37,15 @@ class Logger {
     }
     createFile() {
         const date = new Date();
-        const fileName = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-log.log`;
+        let getDate = date.getDate();
+        if(getDate < 10){
+            getDate = `0${getDate}`
+        }
+        let getMonth = date.getMonth() + 1;
+        if(getMonth < 10){
+            getMonth = `0${getMonth}`
+        }
+        const fileName = `${date.getFullYear()}-${getMonth}-${getDate}-log.log`;
         const rootFolder = findRootFolder();
         const logFolder = path.join(rootFolder, 'logs');
         return path.join(logFolder, fileName);

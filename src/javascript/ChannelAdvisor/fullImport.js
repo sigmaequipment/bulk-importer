@@ -37,6 +37,7 @@ async function channelAdvisorImport(channelAdvisorPayload,access_token,badSkus,c
             let parentID = parentMap[sku];
             return {...item,ParentProductID:parentID}
         })
+    log(`Children : [${JSON.stringify(children,null,2)}]`)
     log(`Starting Channel Advisor Child Import of ${children.length} Items`)
     return await basicChannelAdvisorImport(children,access_token,badSkus,"ChannelAdvisorChildImport");
 }
