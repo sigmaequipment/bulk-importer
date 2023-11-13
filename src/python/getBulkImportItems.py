@@ -50,89 +50,98 @@ class BackgroundTaskBulkImport(threading.Thread):
             #sku that was imported last
             sku_of_last_import = lastImport["bulkSKU"]
 
-            #query to get the items that need to be imported
-            bulk_import_query = requests.get(f'{PostgREST_Table_String}?select=*&and=(inventory_sku.gt.{sku_of_last_import},and(source.not.eq."MANUAL CREATION", source.not.eq."SERIES GENERATOR"))&order=inventory_sku.asc&limit=125').json()
+            #catch for connection errors 
+            try:
 
-            #if the queury returns an empty list wait 30s and then look again for more items
-            if bulk_import_query == []:
-                logToImporter("Bulk waiting 30 seconds")
-                time.sleep(30)
-                continue
-            
-            logToImporter(f"Importing {len(bulk_import_query)} items")
+                #query to get the items that need to be imported
+                bulk_import_query = requests.get(f'{PostgREST_Table_String}?select=*&and=(inventory_sku.gt.{sku_of_last_import},and(source.not.eq."MANUAL CREATION", source.not.eq."SERIES GENERATOR"))&order=inventory_sku.asc&limit=125').json()
 
-            #Loop through all the returned items
-            for item in bulk_import_query:
+                #if the queury returns an empty list wait 30s and then look again for more items
+                if bulk_import_query == []:
+                    logToImporter("Bulk waiting 30 seconds")
+                    time.sleep(30)
+                    continue
+                
+                logToImporter(f"Importing {len(bulk_import_query)} items")
 
-                #convert data from query to dictionary
-                item_to_dictionary = {
-                    "inventory_sku" : item["inventory_sku"],
-                    "item_name" : item["item_name"],
-                    "lister_sku" : item["lister_sku"],
-                    "part_number" : item["part_number"],
-                    "brand" : item["brand"],
-                    "description" : item["description"],
-                    "suggested_category" : item["suggested_category"],
-                    "sigma_category" : item["sigma_category"],
-                    "weight" : item["weight"],
-                    "link" : item["link"],
-                    "apn" : item["apn"],
-                    "series" : item["series"],
-                    "sigma_old_sku" : item["sigma_old_sku"],
-                    "sigma_old_part_number" : item["sigma_old_part_number"],
-                    "estimated_value" : item["estimated_value"],
-                    "authorized_distr_brokerage_price" : item["authorized_distr_brokerage_price"],
-                    "original_packaging_price" : item["original_packaging_price"],
-                    "radwell_packaging_price" : item["radwell_packaging_price"],
-                    "refurbished_price" : item["refurbished_price"],
-                    "repair_price" : item["repair_price"],
-                    "last_price_update" : item["last_price_update"],
-                    "scrape_time" : item["scrape_time"],
-                    "approval_time" : item["approval_time"],
-                    "user_who_approved" : item["user_who_approved"],
-                    "source" : item["source"],
+                #Loop through all the returned items
+                for item in bulk_import_query:
+
+                    #convert data from query to dictionary
+                    item_to_dictionary = {
+                        "inventory_sku" : item["inventory_sku"],
+                        "item_name" : item["item_name"],
+                        "lister_sku" : item["lister_sku"],
+                        "part_number" : item["part_number"],
+                        "brand" : item["brand"],
+                        "description" : item["description"],
+                        "suggested_category" : item["suggested_category"],
+                        "sigma_category" : item["sigma_category"],
+                        "weight" : item["weight"],
+                        "link" : item["link"],
+                        "apn" : item["apn"],
+                        "series" : item["series"],
+                        "sigma_old_sku" : item["sigma_old_sku"],
+                        "sigma_old_part_number" : item["sigma_old_part_number"],
+                        "estimated_value" : item["estimated_value"],
+                        "authorized_distr_brokerage_price" : item["authorized_distr_brokerage_price"],
+                        "original_packaging_price" : item["original_packaging_price"],
+                        "radwell_packaging_price" : item["radwell_packaging_price"],
+                        "refurbished_price" : item["refurbished_price"],
+                        "repair_price" : item["repair_price"],
+                        "last_price_update" : item["last_price_update"],
+                        "scrape_time" : item["scrape_time"],
+                        "approval_time" : item["approval_time"],
+                        "user_who_approved" : item["user_who_approved"],
+                        "source" : item["source"],
+                    }
+
+                    #append item to list
+                    items.append(item_to_dictionary)
+
+                    #append sku to list
+                    sku_list.append(item["inventory_sku"])
+
+                    #save sku of item to be saved later
+                    sku = item["inventory_sku"]
+
+                logToImporter(f"Importing {sku_list[0]} through {sku_list[(len(sku_list) - 1)]}")
+
+                #set up dictionary for tokens
+                tokens = {
+                    "clientid": datachannel['clientid'],
+                    "clientsecret": datachannel['clientsecret'],
+                    "refreshtoken": datachannel['refreshtoken'],
+                    "TenantToken": "FsoVOQznBeUrR5188WQqkxrt5o8ZE/64OLHY2/LASZE=",
+                    "UserToken": "aev/tZ/ZhRsA/h/C8PKpZXR9iTWQDqJ8+Nztj8B3mTc="
                 }
 
-                #append item to list
-                items.append(item_to_dictionary)
+                #set up payload to be sent to API 
+                payload = json.dumps({"items" : items, "tokens" : tokens}, indent=4, default=str)
 
-                #append sku to list
-                sku_list.append(item["inventory_sku"])
+                #send request to Michael's endpoint
+                headers = {"Content-Type": "application/json"}
+                importer_request = requests.post(url=Importer_URL, headers=headers, data=payload, timeout=None).json()
 
-                #save sku of item to be saved later
-                sku = item["inventory_sku"]
+                #get list of skus that returned errors
+                importer_request_errors =  importer_request["badSkus"]
 
-            logToImporter(f"Importing {sku_list[0]} through {sku_list[(len(sku_list) - 1)]}")
+                #upload the list of failed skus to the reimport table
+                if (importer_request_errors != []):
+                    logToImporter("There was a error with the import")
+                    skuErrorHandler(importer_request_errors)
 
-            #set up dictionary for tokens
-            tokens = {
-                "clientid": datachannel['clientid'],
-                "clientsecret": datachannel['clientsecret'],
-                "refreshtoken": datachannel['refreshtoken'],
-                "TenantToken": "FsoVOQznBeUrR5188WQqkxrt5o8ZE/64OLHY2/LASZE=",
-                "UserToken": "aev/tZ/ZhRsA/h/C8PKpZXR9iTWQDqJ8+Nztj8B3mTc="
-            }
-
-            #set up payload to be sent to API 
-            payload = json.dumps({"items" : items, "tokens" : tokens}, indent=4, default=str)
-
-            #send request to Michael's endpoint
-            headers = {"Content-Type": "application/json"}
-            importer_request = requests.post(url=Importer_URL, headers=headers, data=payload, timeout=None).json()
-
-            #get list of skus that returned errors
-            importer_request_errors =  importer_request["badSkus"]
-
-            #upload the list of failed skus to the reimport table
-            if (importer_request_errors != []):
-                logToImporter("There was a error with the import")
-                skuErrorHandler(importer_request_errors)
-
-            else:
-                logToImporter("Succesful Import")
+                else:
+                    logToImporter("Succesful Import")
+                
+                #update the json storing the last imported sku
+                updateBulkSKUFile(sku)
             
-            #update the json storing the last imported sku
-            updateBulkSKUFile(sku)
+            #catch connection error
+            except requests.exceptions.ConnectionError as e:
+                logToImporter(str(e) + "\nWaiting 60 seconds")
+                time.sleep(60)
+                continue
 
 
 #---------------------------------------------------------------------------------------------------------------

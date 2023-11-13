@@ -97,5 +97,6 @@ def importFailedBrandItems(sku):
 
 #---------------------------------------------------------------------------------------------------------------
 #What runs when the script is directly called
+#called by supplying the sku as a command line arguement
 if __name__ == "__main__":
     importFailedBrandItems(sys.argv[1])
