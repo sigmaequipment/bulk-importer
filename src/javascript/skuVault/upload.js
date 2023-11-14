@@ -16,5 +16,10 @@ module.exports = async function uploadToSkuVaultSingle(payload, tokens){
         UserToken:tokens.UserToken
     })
     const url = 'https://app.skuvault.com/api/products/createProduct';
-    return await skuVaultRequester.executeRequest(url);
+    let response = await skuVaultRequester.executeRequest(url);
+    let remaining = +response.headers.get("X-RateLimit-Remaining");
+    skuVaultLimiters.heavy.updateSettings({
+        reservoir: remaining,
+    })
+    return response;
 }

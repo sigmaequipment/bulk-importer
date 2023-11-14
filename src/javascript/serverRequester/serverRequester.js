@@ -1,3 +1,5 @@
+const fetch = require('node-fetch');
+
 class ServerRequest {
     constructor(limiter) {
         this.limiter = limiter;

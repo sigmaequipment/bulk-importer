@@ -4,7 +4,9 @@
 
 The current implementation of the importer only allows for single file imports of items.
 This is a problem when you have a large number of items to import. This bulk importer
-allows you to import multiple items at once, with a maximum of 500 items per import.
+allows you to import multiple items at once, with a maximum of 125 items per import.
+This allows the code base to take full advantage of SkuVault's Throttling limits.
+Which is our bottleneck for imports.
 
 ---
 
@@ -18,10 +20,17 @@ allows you to import multiple items at once, with a maximum of 500 items per imp
 
 ## Description
 
-The API will expose an `/importProductBulk` end point that accepts a POST request with a JSON body.
-This body must contain a list of sku's, and all the necessary tokens for SkuVault and Channel Advisor.
+The API will expose an `/import` end point that accepts a POST request with a JSON body.
+The Body will contain an array of items to import, and the tokens required to make the API calls.
+If the Items array has only one item, It runs the call through single import route with channel advisor.
+This allows us to maintain the same throughput as the old importer for manual creation of items
+While allowing for far greater throughput for bulk imports.
 The API will then call the SkuVault `/addItemBulk` endpoint, and the Channel Advisor `/ProductUpload` endpoint.
 The API will then return a JSON response with the results of the import.
+
+The results in the creation of 125 Sku being created at once.
+In SkuVault, this is 500 unique items (Children Sku's).
+In Channel Advisor, this is 625 unique items (Parent and Children Sku's).
 
 ## Token Requirements
 
@@ -76,7 +85,7 @@ The API will then return a JSON response with the results of the import.
         * LotPriority
     * **Tenant Token**
     * **User Token**
-* Responses all have (Status and Error Properties)
+* All Responses have (Status and Error Properties)
 
     * 200
         * Success
@@ -100,31 +109,31 @@ The API will then return a JSON response with the results of the import.
 {
   "items": [
     {
-      "item_name": "ALLEN BRADLEY 0-A16",
-      "lister_sku": 1083495,
-      "part_number": "0-A16",
-      "brand": "ALLEN BRADLEY",
-      "description": "DISCONTINUED BY MANUFACTURER, COIL, 550 VAC, 60 HZ, SCREW TERMINAL",
-      "suggested_category": "COIL",
-      "sigma_category": "Coil",
-      "weight": "0.12 lbs",
-      "link": "http://www.radwell.com/Buy/ALLEN%20BRADLEY/ALLEN%20BRADLEY/0-A16",
-      "apn": "Not Listed",
-      "series": "NULL",
-      "sigma_old_sku": "NULL",
-      "sigma_old_part_number": "NULL",
-      "estimated_value": "Not Listed",
-      "authorized_distr_brokerage_price": "Not Listed",
-      "original_packaging_price": 137,
-      "radwell_packaging_price": 119,
-      "refurbished_price": 110,
-      "repair_price": "Not Listed",
-      "last_price_update": "3/17/2021",
-      "flagged": 0,
-      "approval_time": "NULL",
-      "user_who_approved": "NULL",
-      "inventory_sku": 244753,
-      "source": "NULL"
+      "item_name": "string",
+      "lister_sku": "number",
+      "part_number": "string",
+      "brand": "string",
+      "description": "string",
+      "suggested_category": "string",
+      "sigma_category": "string",
+      "weight": "string",
+      "link": "string?<validurl>",
+      "apn": "string",
+      "series": "string",
+      "sigma_old_sku": "string",
+      "sigma_old_part_number": "string",
+      "estimated_value": "string",
+      "authorized_distr_brokerage_price": "string",
+      "original_packaging_price": "number", 
+      "radwell_packaging_price": "number",
+      "refurbished_price": "number",
+      "repair_price": "string",
+      "last_price_update": "date",
+      "flagged": "number",
+      "approval_time": "date / timestamp",
+      "user_who_approved": "string",
+      "inventory_sku": "number",
+      "source": "string"
     }
   ],
   "tokens": {
@@ -141,89 +150,6 @@ The API will then return a JSON response with the results of the import.
 ### Success Response
 
 ```json
-
-SIGMA Group
-
-
-Search
-New layout
-
-Use up and down arrow keys to navigate
-Message
-Search conversations
-ALL
-Brandon, Randa
-
-3
-The end point also returns "results"
-thats gives the completed skus back as well
-
-Brandon Weisman
-11:15 AM
-Yeah, saw that earlier and have been working on adapting that structure for what error handling I'll have to do
-
-Michael Walker
-shared a snippet
-11: 23 AM
-Example bad path ( final )
-{
-"badSkus": [
-{
-"Sku": "520807",
-"ErrorMessage": "SKU already exists.\n",
-"FailedAt": "ChannelAdvisorParentImport"
-}
-],
-"results": []
-}
-1
-{
-2
-"badSkus": [
-3
-{
-4
-"Sku": "520807",
-5
-"ErrorMessage": "SKU already exists.\n",
-6
-"FailedAt": "ChannelAdvisorParentImport"
-7
-}
-8
-],
-9
-"results": []
-10
-}
-10 Lines
-Expand
-
-Michael Walker
-shared a note
-11: 25 AM
-Example success
-{"badSkus": [], "results": [{"@odata.context": "https://api.channeladvisor.com/v1/$metadata#Products/$entity", "ID": 5998470, "ProfileID": 1204534...
-
-Randa Doleh
-11: 31 AM
-Great job guys!
-
-
-
-
-
-No pins yet
-Pin information and it will appear here so that you can reference it later.
-You have dropped the item. You have moved the item from position 2 to position 2
-
-Michael Walker
-
-11: 25 AM
-Example success
-Normal
-
-Text format menu, Normal
 {
   "badSkus": [],
   "results": [
@@ -316,7 +242,6 @@ Text format menu, Normal
   "ReferenceSku": null,
   "ReferenceProductID": null
   },
-
   {
   "@odata.context": "https://api.channeladvisor.com/v1/$metadata#Products/$entity",
   "ID": 5998468,

@@ -18,9 +18,9 @@ const percentageMatrix = [
 ]
 
 const calculatePrices = (conditionCode, price) => {
-    if(price === undefined || price === null || price === '') return 0;
+    if(price === undefined || price === null || price === '' || price === 0) return "";
     let temp = parseInt(price);
-    // last updated 07/12/23
+    // last updated 10/30/23
     let priceCode;
     if (temp < ranges[0]) {
         priceCode = 0;

@@ -67,10 +67,10 @@ function formatItem(item){
 
     weight = formatWeight(weight);
     let itemSeries = formatSeries(series);
-    let itemTitle = `${item_name}${itemSeries}${sigma_category === "Other" ? "" : sigma_category}`;
+    let itemTitle = `${item_name}${itemSeries ? " "+itemSeries +" " : " "}${sigma_category === "Other" ? "" : sigma_category}`;
 
     let prices = [original_packaging_price,radwell_packaging_price,refurbished_price,refurbished_price].map((price,i) => {
-        return price !== null ? Math.ceil(calculatePrices(i + 1,price)) - .01 : null;
+        return !!price || price !== null || +price !== 0  ? Math.ceil(calculatePrices(i + 1,price)) - .01 : "";
     })
 
     let categoryFlag = sigma_category === "Other" ? "NoFlag" : categoryFlags[sigma_category];
