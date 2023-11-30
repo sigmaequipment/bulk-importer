@@ -9,7 +9,7 @@ const SkuVaultImporter = require("./src/javascript/skuVault/importer");
 const channelAdvisorImport = require("./src/javascript/ChannelAdvisor/fullImport");
 const {log,error} = require("./src/javascript/Logger/logger");
 const splitPayload = require('./src/javascript/splitPayload/splitPayload');
-
+const timeoutWrapper = require("./src/javascript/timeoutWrapper/main");
 
 require("dotenv").config();
 
@@ -89,18 +89,19 @@ fastify.post('/import',incomingPayloadSchema, async (request,reply) => {
             log("Single Route")
             uploadFunc = uploadToSkuVaultSingle;
         }
-        await SkuVaultImporter(uploadFunc)(skuVaultPayload, tokens, badSkus)
+        await timeoutWrapper(30000)(SkuVaultImporter(uploadFunc),skuVaultPayload, tokens, badSkus)
         log(`${badSkus.length} Failed at Sku Vault`)
         // If A sku failed at the Sku Vault step, This filters it out of the Channel Advisor Payload,
         // so we don't upload.js a bad sku to Channel Advisor
         let filteredChannelAdvisorPayload = channelAdvisorPayload.filter(({Sku}) => !badSkus.some(({Sku: badSku}) => badSku.includes(Sku)))
         if (filteredChannelAdvisorPayload.length === 0) return reply.send({badSkus});
         log(seperator)
-        const access_token = await authorizeChannelAdvisor(tokens);
+        
+        const access_token = await timeoutWrapper(15000)(authorizeChannelAdvisor,tokens);
         log(`Finished Authorizing Channel Advisor`)
         log(seperator)
         log(`Starting Channel Advisor Import of ${filteredChannelAdvisorPayload.length} Items`)
-        let results = await channelAdvisorImport(
+        let results = await timeoutWrapper(30000)(channelAdvisorImport,
             filteredChannelAdvisorPayload,
             access_token,
             badSkus,
