@@ -10,5 +10,6 @@ nvm
 ./importer-script.sh &
 
 sleep 10
-./single-start.sh &
-./bulk-start.sh
+#./single-start.sh &
+#./bulk-start.sh
+./single-start.sh

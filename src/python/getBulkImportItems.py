@@ -50,16 +50,13 @@ class BackgroundTaskBulkImport(threading.Thread):
             #sku that was imported last
             sku_of_last_import = lastImport["bulkSKU"]
 
-<<<<<<< HEAD
             #catch for connection errors 
             try:
-=======
-            #query to get the items that need to be imported
-            bulk_import_query = requests.get(f'{PostgREST_Table_String}?select=*&and=(inventory_sku.gt.{sku_of_last_import},and(source.not.eq."MANUAL CREATION", source.not.eq."SERIES GENERATOR"))&order=inventory_sku.asc&limit=40').json()
->>>>>>> master
+                #query to get the items that need to be imported
+                bulk_import_query = requests.get(f'{PostgREST_Table_String}?select=*&and=(inventory_sku.gt.{sku_of_last_import},and(source.not.eq."MANUAL CREATION", source.not.eq."SERIES GENERATOR"))&order=inventory_sku.asc&limit=40').json()
 
                 #query to get the items that need to be imported
-                bulk_import_query = requests.get(f'{PostgREST_Table_String}?select=*&and=(inventory_sku.gt.{sku_of_last_import},and(source.not.eq."MANUAL CREATION", source.not.eq."SERIES GENERATOR"))&order=inventory_sku.asc&limit=125').json()
+                bulk_import_query = requests.get(f'{PostgREST_Table_String}?select=*&and=(inventory_sku.gt.{sku_of_last_import},and(source.not.eq."MANUAL CREATION", source.not.eq."SERIES GENERATOR"))&order=inventory_sku.asc&limit=40').json()
 
                 #if the queury returns an empty list wait 30s and then look again for more items
                 if bulk_import_query == []:

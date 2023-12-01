@@ -16,5 +16,11 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+
 src/javascript/calculatePrice/calculatePrice.js
+
 src/json/singleSKU.json
+src/json/bulkSKU.json
+src/json/access_token.json
+
+run.sh
