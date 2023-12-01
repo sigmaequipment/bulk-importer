@@ -5,6 +5,7 @@ import threading
 import time
 from importerErrorHandling import skuErrorHandler, PostgREST_Table_String, Importer_URL
 from importerLogging import logToImporter
+import traceback
 
 
 #load the user and tenant token json
@@ -140,4 +141,8 @@ class BackgroundTaskSingleImport(threading.Thread):
 #What runs when the script is directly called
 if __name__ == "__main__":
     obj = BackgroundTaskSingleImport()
-    obj.getItemsForImport()
+    try:
+        obj.getItemsForImport()
+    except Exception as ex:
+        error_string = ''.join(traceback.TracebackException.from_exception(ex).format())
+        logToImporter(error_string)
