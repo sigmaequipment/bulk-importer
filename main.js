@@ -13,7 +13,7 @@ const timeoutWrapper = require("./src/javascript/timeoutWrapper/main");
 
 require("dotenv").config();
 
-
+const timeout = 60000;
 const seperator = "------------------------------------"
 log(seperator)
 log("*** Bulk Importer (Beta) V1 ***");
@@ -89,7 +89,7 @@ fastify.post('/import',incomingPayloadSchema, async (request,reply) => {
             log("Single Route")
             uploadFunc = uploadToSkuVaultSingle;
         }
-        await timeoutWrapper(30000)(SkuVaultImporter(uploadFunc),skuVaultPayload, tokens, badSkus)
+        await timeoutWrapper(timeout)(SkuVaultImporter(uploadFunc),skuVaultPayload, tokens, badSkus)
         log(`${badSkus.length} Failed at Sku Vault`)
         // If A sku failed at the Sku Vault step, This filters it out of the Channel Advisor Payload,
         // so we don't upload.js a bad sku to Channel Advisor
@@ -97,11 +97,11 @@ fastify.post('/import',incomingPayloadSchema, async (request,reply) => {
         if (filteredChannelAdvisorPayload.length === 0) return reply.send({badSkus});
         log(seperator)
         
-        const access_token = await timeoutWrapper(15000)(authorizeChannelAdvisor,tokens);
+        const access_token = await timeoutWrapper(timeout/2)(authorizeChannelAdvisor,tokens);
         log(`Finished Authorizing Channel Advisor`)
         log(seperator)
         log(`Starting Channel Advisor Import of ${filteredChannelAdvisorPayload.length} Items`)
-        let results = await timeoutWrapper(30000)(channelAdvisorImport,
+        let results = await timeoutWrapper(timeout)(channelAdvisorImport,
             filteredChannelAdvisorPayload,
             access_token,
             badSkus,
@@ -124,8 +124,8 @@ fastify.post('/import',incomingPayloadSchema, async (request,reply) => {
         error("The Error Is:",e)
         console.log(e)
         reply.send({
-            error: e,
-            badSkus: channelAdvisorPayload.map(({Sku}) => ({Sku, ErrorMessages: ["Error Importing"]}))
+            badSkus,
+            results:[]
         })
     }
 });
