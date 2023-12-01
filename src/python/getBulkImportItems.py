@@ -5,6 +5,7 @@ import threading
 import time
 from importerErrorHandling import skuErrorHandler, PostgREST_Table_String, Importer_URL
 from importerLogging import logToImporter
+import traceback
 
 
 #load the user and tenant token json
@@ -52,9 +53,6 @@ class BackgroundTaskBulkImport(threading.Thread):
 
             #catch for connection errors 
             try:
-                #query to get the items that need to be imported
-                bulk_import_query = requests.get(f'{PostgREST_Table_String}?select=*&and=(inventory_sku.gt.{sku_of_last_import},and(source.not.eq."MANUAL CREATION", source.not.eq."SERIES GENERATOR"))&order=inventory_sku.asc&limit=40').json()
-
                 #query to get the items that need to be imported
                 bulk_import_query = requests.get(f'{PostgREST_Table_String}?select=*&and=(inventory_sku.gt.{sku_of_last_import},and(source.not.eq."MANUAL CREATION", source.not.eq."SERIES GENERATOR"))&order=inventory_sku.asc&limit=40').json()
 
@@ -150,4 +148,8 @@ class BackgroundTaskBulkImport(threading.Thread):
 #What runs when the script is directly called
 if __name__ == "__main__":
     obj = BackgroundTaskBulkImport()
-    obj.getItemsForImport()
+    try:
+        obj.getItemsForImport()
+    except Exception as ex:
+        error_string = ''.join(traceback.TracebackException.from_exception(ex).format())
+        logToImporter(error_string)
