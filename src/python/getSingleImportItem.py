@@ -52,10 +52,19 @@ class BackgroundTaskSingleImport(threading.Thread):
             try:
 
                 #query to get the items that need to be imported
-                single_import_query = requests.get(f'{PostgREST_Table_String}?select=*&and=(inventory_sku.gt.{sku_of_last_import},or(source.eq."MANUAL CREATION", source.eq."SERIES GENERATOR"))&order=inventory_sku.asc&limit=1').json()
+                single_import_query_response = requests.get(f'{PostgREST_Table_String}?select=*&and=(inventory_sku.gt.{sku_of_last_import},or(source.eq."MANUAL CREATION", source.eq."SERIES GENERATOR"))&order=inventory_sku.asc&limit=1')
+
+                #check status of the response
+                if single_import_query_response.status_code != 200:
+                    logToImporter(f"Recieved {single_import_query_response.status_code} when querying DB for items to import. Waiting 60s")
+                    time.sleep(60)
+                    continue
+
+                #set json from response
+                single_import_query = single_import_query_response.json()
 
                 #if the queury returns an empty list wait 30s and then look again for more items
-                if single_import_query == []:
+                if single_import_query == [] or single_import_query is None:
                     logToImporter("Single waiting 30 seconds")
                     time.sleep(30)
                     continue
@@ -141,8 +150,12 @@ class BackgroundTaskSingleImport(threading.Thread):
 #What runs when the script is directly called
 if __name__ == "__main__":
     obj = BackgroundTaskSingleImport()
-    try:
-        obj.getItemsForImport()
-    except Exception as ex:
-        error_string = ''.join(traceback.TracebackException.from_exception(ex).format())
-        logToImporter(error_string)
+    while True:
+        try:
+            obj.getItemsForImport()
+        except Exception as ex:
+            error_string = ''.join(traceback.TracebackException.from_exception(ex).format())
+            logToImporter(error_string)
+        
+        logToImporter("This is only reached if error was encountered. Sleeping for 60s before restarting importer")
+        time.sleep(60)
