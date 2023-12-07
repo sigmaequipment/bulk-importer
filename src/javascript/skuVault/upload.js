@@ -15,6 +15,8 @@ module.exports = async function uploadToSkuVaultSingle(payload, tokens){
         TenantToken:tokens.TenantToken,
         UserToken:tokens.UserToken
     })
+    // regex to remove FeFF BOM
+    skuVaultRequester.body = skuVaultRequester.body.replace(/[\uFEFF]/g, '');
     const url = 'https://app.skuvault.com/api/products/createProduct';
     let response = await skuVaultRequester.executeRequest(url);
     let remaining = +response.headers.get("X-RateLimit-Remaining");
