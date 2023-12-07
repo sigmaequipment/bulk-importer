@@ -21,6 +21,10 @@ module.exports = function SkuVaultImporter(uploadFunction){
             err("Error Uploading To Sku Vault")
             err("The Error Is:",e)
             console.log(e)
+            payload.forEach(({Sku})=>{
+                badSkus.push({Sku,ErrorMessages:[e.message],FailedAt:uploadFunction.name})
+            })
+            return []
         }
     }
 }
