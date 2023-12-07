@@ -3,7 +3,7 @@ from datetime import date
 import requests
 import threading
 import time
-from importerErrorHandling import skuErrorHandler, PostgREST_Table_String, Importer_URL
+from importerErrorHandling import skuErrorHandler, uploadFailedImports, PostgREST_Table_String, Importer_URL
 from importerLogging import logToImporter
 import traceback
 
@@ -31,6 +31,53 @@ def updateSingleSKUFile(sku):
     lastImport["singleSKU"] = sku
     with open('src/json/singleSKU.json', 'w') as currentSKU:
         json.dump(lastImport, currentSKU)
+
+
+#---------------------------------------------------------------------------------------------------------------
+#function to hanlde the incrementing foward of the sku should an error occur three times in a row
+def incrementFromErrorSingle(error_msg):
+    
+    error_dict = {
+        'Sku': None,
+        'Error': None
+    }
+
+    #make request to get the sku that was being attempeted to be imported
+    sku_of_last_import = lastImport["singleSKU"]
+    single_import_query_response = requests.get(f'{PostgREST_Table_String}?select=inventory_sku&and=(inventory_sku.gt.{sku_of_last_import},or(source.eq."MANUAL CREATION", source.eq."SERIES GENERATOR"))&order=inventory_sku.asc&limit=1')
+
+    #check status of the response
+    if single_import_query_response.status_code != 200:
+        error_dict["Error"] = f"Response from db was {single_import_query_response.status_code} when getting sku for error increment"
+        return error_dict
+    
+    #set json from response
+    single_import_query = single_import_query_response.json()
+
+    #if the queury returns an empty list wait 30s and then look again for more items
+    if single_import_query == [] or single_import_query is None:
+        error_dict["Error"] = f"SKU was not found for error increment"
+        return error_dict
+
+    #get the item from the query
+    item = single_import_query[0]
+    error_dict["Sku"] = item["inventory_sku"]
+
+    #dict to send to reimport table
+    reimport_list = [{
+        "Sku" : str(item["inventory_sku"]),
+        "ErrorMessage" : error_msg,
+        "FailedAt" : "Single Import Script"
+    }]
+
+    #call reimport table function
+    reimport = uploadFailedImports(reimport_list, create_brands_bool=False)
+
+    #update sku file
+    updateSingleSKUFile(item["inventory_sku"])
+    
+    return error_dict
+
 
 
 #---------------------------------------------------------------------------------------------------------------
@@ -150,6 +197,11 @@ class BackgroundTaskSingleImport(threading.Thread):
 #What runs when the script is directly called
 if __name__ == "__main__":
     obj = BackgroundTaskSingleImport()
+    error_count= 0
+    error_string = ''
+    error_sku = 0
+    
+    #loop to continue running should the import script fail
     while True:
         try:
             obj.getItemsForImport()
@@ -157,5 +209,25 @@ if __name__ == "__main__":
             error_string = ''.join(traceback.TracebackException.from_exception(ex).format())
             logToImporter(error_string)
         
+        #increment error count
+        errorCount += 1
+
+        #if error count reaches 3 and the same sku errored three times, it gets the sku that was being attempted to be imported, saves it to the reimport table
+        if errorCount >= 3 and error_sku == lastImport["singleSKU"]:
+            errorCount = 0
+
+            #call function to get sku that failed, send to reimport table, and update sku file
+            try:
+                error_dict = incrementFromErrorSingle(error_string)
+                if (error_dict['Error'] is not None):
+                    logToImporter(error_dict['Error'])
+            except Exception as ex:
+                error_string = ''.join(traceback.TracebackException.from_exception(ex).format())
+                logToImporter(error_string)
+            
+            
+        #save sku that failed
+        error_sku = lastImport["singleSKU"]
+
         logToImporter("This is only reached if error was encountered. Sleeping for 60s before restarting importer")
         time.sleep(60)
