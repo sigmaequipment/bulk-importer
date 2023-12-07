@@ -6,8 +6,10 @@ module.exports = function SkuVaultImporter(uploadFunction){
             const pool = createPromisePool((item)=>uploadFunction(item,token), 5);
             log("Creating Promise Pool")
             let skuVaultResults = await pool.process(payload)
+            console.log(skuVaultResults)
             log("Uploading To Sku Vault")
             let responses = await Promise.all(skuVaultResults.results.map(result=>result.json()));
+            console.log(responses)
             log("Finished Uploading To Sku Vault")
             log("The Responses From Sku Vault Are:",responses.map(({Status})=>Status))
             log("Checking For Errors")

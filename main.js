@@ -25,7 +25,7 @@ log(seperator)
 
 
 const fastify = Fastify({
-    logger: true
+    logger: false
 });
 
 /*
@@ -66,9 +66,7 @@ fastify.post("/log",async(req,reply)=>{
 
 fastify.post('/import',incomingPayloadSchema, async (request,reply) => {
     const {body: {items, tokens}} = request;
-
     let length = items.length;
-    console.log(JSON.stringify(items, null, 2))
     log(seperator)
     log(`Request To Start Import of ${length} Items`);
     const badSkus = [];
@@ -124,8 +122,10 @@ fastify.post('/import',incomingPayloadSchema, async (request,reply) => {
         error("Error Importing")
         error("The Error Is:",e)
         console.log(e)
+        let badSkus = items.map(({inventory_sku})=>({Sku:`${inventory_sku}`,ErrorMessages:[e], failedAt:"Time out"}))
+        console.log(badSkus)
         reply.send({
-            badSkus:items.map(({inventory_sku})=>({Sku:`${inventory_sku}`,ErrorMessages:[e], failedAt:"Time out"})),
+            badSkus,
             results:[]
         })
     }
