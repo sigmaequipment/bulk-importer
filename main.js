@@ -125,7 +125,7 @@ fastify.post('/import',incomingPayloadSchema, async (request,reply) => {
         error("The Error Is:",e)
         console.log(e)
         reply.send({
-            badSkus:items.map(({inventory_sku})=>({Sku:inventory_sku,ErrorMessages:[e]})),
+            badSkus:items.map(({inventory_sku})=>({Sku:`${inventory_sku}`,ErrorMessages:[e], failedAt:"Time out"})),
             results:[]
         })
     }
