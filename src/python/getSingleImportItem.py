@@ -66,7 +66,7 @@ def incrementFromErrorSingle(error_msg):
     #dict to send to reimport table
     reimport_list = [{
         "Sku" : str(item["inventory_sku"]),
-        "ErrorMessage" : error_msg,
+        "ErrorMessages" : error_msg,
         "FailedAt" : "Single Import Script"
     }]
 
@@ -197,7 +197,7 @@ class BackgroundTaskSingleImport(threading.Thread):
 #What runs when the script is directly called
 if __name__ == "__main__":
     obj = BackgroundTaskSingleImport()
-    error_count= 0
+    errorCount = 0
     error_string = ''
     error_sku = 0
     
