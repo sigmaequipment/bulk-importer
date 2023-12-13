@@ -1,3 +1,4 @@
+const PayloadError = require("../payloadError");
 const createPromisePool = require("../promisePool/promisePool");
 const importProductToChannelAdvisor = require("./import");
 
@@ -10,7 +11,7 @@ module.exports = async function basicChannelAdvisorImport(payload,access_token,b
         errors.forEach(({item,raw})=>{
             const {Message:ErrorMessage} = raw;
             const {Sku} = item;
-            badSkus.push({Sku,ErrorMessage,FailedAt:location})
+            badSkus.push(new PayloadError(Sku,ErrorMessage,location))
         })
     }
     return results

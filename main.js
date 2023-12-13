@@ -10,10 +10,11 @@ const channelAdvisorImport = require("./src/javascript/ChannelAdvisor/fullImport
 const {log,error} = require("./src/javascript/Logger/logger");
 const splitPayload = require('./src/javascript/splitPayload/splitPayload');
 const timeoutWrapper = require("./src/javascript/timeoutWrapper/main");
-
+const PayloadError = require("./src/javascript/payloadError");
 require("dotenv").config();
 
-const timeout = 60000;
+const timeoutMinutes = 2;
+const timeout = timeoutMinutes * 60 * 1000;
 const seperator = "------------------------------------"
 log(seperator)
 log("*** Bulk Importer (Beta) V1 ***");
@@ -36,7 +37,12 @@ fastify.register(cors, {
     origin: '*'
 });
 
-
+/**
+ * @typedef {Object} PayloadError
+ * @property {string} Sku - The Sku of the item that failed
+ * @property {string} ErrorMessage - The Error Message
+ * @property {string} FailedAt - The step in the process that the item failed at
+ */
 
 registerSchema("./src/json/schema.json",fastify)
 const incomingPayloadSchema ={
@@ -46,6 +52,34 @@ const incomingPayloadSchema ={
           }
     }
 }
+
+
+fastify.get("/restart",(req,reply)=>{
+    // this route needs to restart the service
+    // this is done with sudo systemctl restart importer
+    const {loginString} = req.query;
+    if(!loginString){
+        reply.send("No Login String Found")
+    }
+    if(loginString !== process.env.LOGIN_STRING){
+        reply.send("Invalid Login String")
+    }
+    const {spawn} = require("child_process");
+
+    const proc = spawn("sh",["-c",`echo ${process.env.PASSWORD} | sudo -S bash -c "sudo systemctl restart importer"`]);
+    proc.stdout.on("data",(data)=>{
+        log(data.toString());
+    })
+    proc.stderr.on("data",(data)=>{
+        error(data.toString());
+    })
+    proc.on("close",(code)=>{
+        log(`child process exited with code ${code}`);
+    })
+
+})
+
+
 fastify.get("/log",(req,reply)=>{
     const date = new Date();
     const fileName = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}-log.log`;
@@ -83,7 +117,6 @@ fastify.post('/import',incomingPayloadSchema, async (request,reply) => {
             log("Bulk Import")
             uploadFunc = uploadToSkuVaultBulk;
             skuVaultPayload = splitPayload(skuVaultPayload)
-            console.log(skuVaultPayload)
         } else {
             log("Single Route")
             uploadFunc = uploadToSkuVaultSingle;
@@ -97,33 +130,40 @@ fastify.post('/import',incomingPayloadSchema, async (request,reply) => {
         log(seperator)
         
         const access_token = await timeoutWrapper(timeout/2)(authorizeChannelAdvisor,tokens);
+
         log(`Finished Authorizing Channel Advisor`)
         log(seperator)
         log(`Starting Channel Advisor Import of ${filteredChannelAdvisorPayload.length} Items`)
+
         let results = await timeoutWrapper(timeout)(channelAdvisorImport,
             filteredChannelAdvisorPayload,
             access_token,
             badSkus,
             completedItems
         )
+
         log(`Finished Channel Advisor Import`)
         log(seperator)
+
         results = results.concat(completedItems);
+
         log(`The importer has finished importing ${results.length} items`)
+
         if (filteredChannelAdvisorPayload.length < results.length) {
             log(`The importer has failed to import ${results.length - filteredChannelAdvisorPayload.length} items into Channel Advisor`)
         }
+
         log(seperator)
         reply.send({
             badSkus,
             results
         });
+        
     } catch (e) {
         error("Error Importing")
         error("The Error Is:",e)
         console.log(e)
-        let badSkus = items.map(({inventory_sku})=>({Sku:`${inventory_sku}`,ErrorMessages:[e], failedAt:"Time out"}))
-        console.log(badSkus)
+        let badSkus = items.map(({inventory_sku})=>(new PayloadError(`${inventory_sku}`,[e],"Time out")))
         reply.send({
             badSkus,
             results:[]

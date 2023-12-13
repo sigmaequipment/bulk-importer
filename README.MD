@@ -610,7 +610,7 @@ In Channel Advisor, this is 625 unique items (Parent and Children Sku's).
   "badSkus": [
     {
       "Sku": "520807",
-      "ErrorMessage": "SKU already exists.\n",
+      "ErrorMessages": "SKU already exists.\n",
       "FailedAt": "ChannelAdvisorParentImport"
     }
   ],
