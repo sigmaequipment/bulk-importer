@@ -99,7 +99,7 @@ class BackgroundTaskSingleImport(threading.Thread):
             try:
 
                 #query to get the items that need to be imported
-                single_import_query_response = requests.get(f'{PostgREST_Table_String}?select=*&and=(inventory_sku.gt.{sku_of_last_import},or(source.eq."MANUAL CREATION", source.eq."SERIES GENERATOR"))&order=inventory_sku.asc&limit=1')
+                single_import_query_response = requests.get(f'{PostgREST_Table_String}?select=*&and=(inventory_sku.gt.{sku_of_last_import},or(source.eq."MANUAL CREATION", source.eq."SERIES GENERATOR", source.eq."BROAD SCRAPE (NRI)"))&order=inventory_sku.asc&limit=1')
 
                 #check status of the response
                 if single_import_query_response.status_code != 200:
