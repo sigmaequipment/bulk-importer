@@ -4,7 +4,9 @@ module.exports = function SkuVaultImporter(uploadFunction){
     return async (payload,token,badSkus) =>{
         try{
             const pool = createPromisePool((item)=>uploadFunction(item,token), 5);
+            log("Creating Promise Pool")
             let skuVaultResults = await pool.process(payload)
+            log("Uploading To Sku Vault")
             let responses = await Promise.all(skuVaultResults.results.map(result=>result.json()));
             log("Finished Uploading To Sku Vault")
             log("The Responses From Sku Vault Are:",responses.map(({Status})=>Status))
@@ -21,6 +23,10 @@ module.exports = function SkuVaultImporter(uploadFunction){
             err("Error Uploading To Sku Vault")
             err("The Error Is:",e)
             console.log(e)
+            payload.forEach(({Sku})=>{
+                badSkus.push({Sku,ErrorMessages:[e.message],FailedAt:uploadFunction.name})
+            })
+            return []
         }
     }
 }

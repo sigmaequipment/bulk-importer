@@ -66,6 +66,7 @@ fastify.post("/log",async(req,reply)=>{
 
 fastify.post('/import',incomingPayloadSchema, async (request,reply) => {
     const {body: {items, tokens}} = request;
+
     let length = items.length;
     console.log(JSON.stringify(items, null, 2))
     log(seperator)
@@ -124,7 +125,7 @@ fastify.post('/import',incomingPayloadSchema, async (request,reply) => {
         error("The Error Is:",e)
         console.log(e)
         reply.send({
-            badSkus,
+            badSkus:items.map(({inventory_sku})=>({Sku:inventory_sku,ErrorMessages:[e]})),
             results:[]
         })
     }
