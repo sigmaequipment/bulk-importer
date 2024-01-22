@@ -1,11 +1,12 @@
 import json
-from datetime import date
+from datetime import date, datetime
 import requests
 import threading
 import time
-from importerErrorHandling import skuErrorHandler, PostgREST_Table_String, Importer_URL
+from importerErrorHandling import skuErrorHandler, uploadFailedImports, PostgREST_Table_String, Importer_URL, uptime_table, postgres_API_headers
 from importerLogging import logToImporter
 import traceback
+import pytz
 
 
 #load the user and tenant token json
@@ -34,6 +35,53 @@ def updateSingleSKUFile(sku):
 
 
 #---------------------------------------------------------------------------------------------------------------
+#function to hanlde the incrementing foward of the sku should an error occur three times in a row
+def incrementFromErrorSingle(error_msg):
+    
+    error_dict = {
+        'Sku': None,
+        'Error': None
+    }
+
+    #make request to get the sku that was being attempeted to be imported
+    sku_of_last_import = lastImport["singleSKU"]
+    single_import_query_response = requests.get(f'{PostgREST_Table_String}?select=inventory_sku&and=(inventory_sku.gt.{sku_of_last_import},or(source.eq."MANUAL CREATION", source.eq."SERIES GENERATOR"))&order=inventory_sku.asc&limit=1')
+
+    #check status of the response
+    if single_import_query_response.status_code != 200:
+        error_dict["Error"] = f"Response from db was {single_import_query_response.status_code} when getting sku for error increment"
+        return error_dict
+    
+    #set json from response
+    single_import_query = single_import_query_response.json()
+
+    #if the queury returns an empty list wait 30s and then look again for more items
+    if single_import_query == [] or single_import_query is None:
+        error_dict["Error"] = f"SKU was not found for error increment"
+        return error_dict
+
+    #get the item from the query
+    item = single_import_query[0]
+    error_dict["Sku"] = item["inventory_sku"]
+
+    #dict to send to reimport table
+    reimport_list = [{
+        "Sku" : str(item["inventory_sku"]),
+        "ErrorMessages" : error_msg,
+        "FailedAt" : "Single Import Script"
+    }]
+
+    #call reimport table function
+    reimport = uploadFailedImports(reimport_list, create_brands_bool=False)
+
+    #update sku file
+    updateSingleSKUFile(item["inventory_sku"])
+    
+    return error_dict
+
+
+
+#---------------------------------------------------------------------------------------------------------------
 #Background task to collect non user created items to be sent to the single importer
 class BackgroundTaskSingleImport(threading.Thread):
     def getItemsForImport(self,*args,**kwargs):
@@ -52,7 +100,7 @@ class BackgroundTaskSingleImport(threading.Thread):
             try:
 
                 #query to get the items that need to be imported
-                single_import_query_response = requests.get(f'{PostgREST_Table_String}?select=*&and=(inventory_sku.gt.{sku_of_last_import},or(source.eq."MANUAL CREATION", source.eq."SERIES GENERATOR"))&order=inventory_sku.asc&limit=1')
+                single_import_query_response = requests.get(f'{PostgREST_Table_String}?select=*&and=(inventory_sku.gt.{sku_of_last_import},or(source.eq."MANUAL CREATION", source.eq."SERIES GENERATOR", source.eq."BROAD SCRAPE (NRI)"))&order=inventory_sku.asc&limit=1')
 
                 #check status of the response
                 if single_import_query_response.status_code != 200:
@@ -109,6 +157,17 @@ class BackgroundTaskSingleImport(threading.Thread):
                 #save sku of item to be saved later
                 sku = item["inventory_sku"]
 
+                #save start time for to track uptime
+                start_time = datetime.now(pytz.timezone("US/Central"))
+                
+                #send starttime to DB
+                uptime_payload = json.dumps({"inventory_sku" : sku, "start_time" : start_time}, indent=4, default=str)
+                uptime_request = requests.post(url=uptime_table, headers=postgres_API_headers, data=uptime_payload)
+                
+                #get id of time entry that was just created
+                uptime_query = (requests.get(f'{uptime_table}?select=id&start_time=eq.{start_time}').json())[0]
+                timeID = uptime_query['id']
+
                 #set up dictionary for tokens
                 tokens = {
                     "clientid": datachannel['clientid'],
@@ -125,15 +184,26 @@ class BackgroundTaskSingleImport(threading.Thread):
                 headers = {"Content-Type": "application/json"}
                 importer_request = requests.post(url=Importer_URL, headers=headers, data=payload, timeout=None).json()
 
+                #save the end time of the request
+                end_time = datetime.now(pytz.timezone("US/Central"))
+
                 #get list of skus that returned errors
                 importer_request_errors =  importer_request["badSkus"]
 
                 #upload the list of failed skus to the reimport table
                 if (importer_request_errors != []):
+                    #set item end_time and don't do anything with error boolean, since it is default to true
+                    uptime_payload = json.dumps({"end_time" : end_time}, indent=4, default=str)
+                    uptime_patch_request = requests.patch(url=f'{uptime_table}?id=eq.{timeID}', headers=postgres_API_headers, data=uptime_payload)
+
                     logToImporter("There was a error with the import")
-                    skuErrorHandler(importer_request_errors)
+                    skuErrorHandler(importer_request_errors, timeID)
 
                 else:
+                    #set item end_time and set error boolean to false
+                    uptime_payload = json.dumps({"end_time" : end_time, "error" : False}, indent=4, default=str)
+                    uptime_patch_request = requests.patch(url=f'{uptime_table}?id=eq.{timeID}', headers=postgres_API_headers, data=uptime_payload)
+
                     logToImporter("Succesful Import")
 
                 #update the json storing the last imported sku
@@ -150,6 +220,11 @@ class BackgroundTaskSingleImport(threading.Thread):
 #What runs when the script is directly called
 if __name__ == "__main__":
     obj = BackgroundTaskSingleImport()
+    errorCount = 0
+    error_string = ''
+    error_sku = 0
+    
+    #loop to continue running should the import script fail
     while True:
         try:
             obj.getItemsForImport()
@@ -157,5 +232,25 @@ if __name__ == "__main__":
             error_string = ''.join(traceback.TracebackException.from_exception(ex).format())
             logToImporter(error_string)
         
+        #increment error count
+        errorCount += 1
+
+        #if error count reaches 3 and the same sku errored three times, it gets the sku that was being attempted to be imported, saves it to the reimport table
+        if errorCount >= 3 and error_sku == lastImport["singleSKU"]:
+            errorCount = 0
+
+            #call function to get sku that failed, send to reimport table, and update sku file
+            try:
+                error_dict = incrementFromErrorSingle(error_string)
+                if (error_dict['Error'] is not None):
+                    logToImporter(error_dict['Error'])
+            except Exception as ex:
+                error_string = ''.join(traceback.TracebackException.from_exception(ex).format())
+                logToImporter(error_string)
+            
+            
+        #save sku that failed
+        error_sku = lastImport["singleSKU"]
+
         logToImporter("This is only reached if error was encountered. Sleeping for 60s before restarting importer")
         time.sleep(60)
