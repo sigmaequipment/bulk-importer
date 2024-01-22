@@ -2,6 +2,8 @@ import requests
 import json
 import time
 from importerLogging import logToImporter
+from datetime import datetime
+import pytz
 
 #connection string for the PostgREST API to access the table needed to import a new item
 PostgREST_Table_String = "http://10.100.100.42:8390/approved_templates"
@@ -9,8 +11,16 @@ PostgREST_Table_String = "http://10.100.100.42:8390/approved_templates"
 #connection string for the PostgREST API to access the reimport table
 reimport_table = "http://10.100.100.42:8390/reimport_needed"
 
+uptime_table = "http://10.100.100.42:8390/importer_uptime"
+
 #Connection string to the JS importer
 Importer_URL = "http://10.100.100.51:3005/import"
+
+#set headers for making calls to postgres API
+postgres_API_headers = {
+    'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic3VycGx1c191c2VyIn0.mbykDI_CBEDdxyTxqGECh7TwtrRpJPAznPrE291dtww',
+    "Content-Type": "application/json"
+    }
 
 #load the user and tenant token json
 with open('src/json/SkuVaultTenantandUserTokens.json','r+') as tenant:
@@ -23,7 +33,7 @@ with open('src/json/ChannelAdvisorAPI.json','r+') as channel:
 
 #---------------------------------------------------------------------------------------------------------------
 #function to call all of the needed functions to hanlde errors from imports
-def skuErrorHandler(failed_skus):
+def skuErrorHandler(failed_skus, timeID):
     #save skus that failed original import to the reimport table and return skus that need a brand created
     brand_reimport_list = uploadFailedImports(failed_skus, create_brands_bool=True)
 
@@ -37,7 +47,7 @@ def skuErrorHandler(failed_skus):
         time.sleep(5)
 
         #reimport items that failed due to brands not being created, returns list of erros
-        errors = importFailedBrandItems(brand_reimport_list)
+        errors = importFailedBrandItems(brand_reimport_list, timeID)
 
         if (errors != []):
             #save skus that failed the reimport to the reimport table and will NOT return list of skus that need brands created
@@ -47,11 +57,6 @@ def skuErrorHandler(failed_skus):
 #---------------------------------------------------------------------------------------------------------------
 #function to hanlde items that result in a failed import
 def uploadFailedImports(failed_skus, create_brands_bool):
-    #init fields for requests to the reimport table
-    headers = {
-        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic3VycGx1c191c2VyIn0.mbykDI_CBEDdxyTxqGECh7TwtrRpJPAznPrE291dtww',
-        "Content-Type": "application/json"
-        }
 
     #init lists to store skus of items that were saved and items that need brands created    
     saved_sku_list = []
@@ -95,7 +100,7 @@ def uploadFailedImports(failed_skus, create_brands_bool):
         }, indent=4, default=str)
 
         #post to API
-        reimport_table_response = requests.post(url=reimport_table, headers=headers, data=payload)
+        reimport_table_response = requests.post(url=reimport_table, headers=postgres_API_headers, data=payload)
 
         logToImporter(f"Reimport table response: {reimport_table_response}")
 
@@ -144,7 +149,7 @@ def createBrands(sku_list):
 
 #---------------------------------------------------------------------------------------------------------------
 #function to send an import request to the importer with data from the items that had to have a brand created
-def importFailedBrandItems(sku_list):
+def importFailedBrandItems(sku_list, timeID):
     
     #list to store items that will be part of payload
     items = []
@@ -224,9 +229,19 @@ def importFailedBrandItems(sku_list):
     headers = {"Content-Type": "application/json"}
     importer_request = requests.post(url=Importer_URL, headers=headers, data=payload, timeout=None).json()
 
+    #save the end time of the request using timeID
+    end_time = datetime.now(pytz.timezone("US/Central"))
+
     if (importer_request["badSkus"] != []):
+        #set item end_time and don't do anything with error boolean, since it is default to true
+        uptime_payload = json.dumps({"end_time" : end_time}, indent=4, default=str)
+        uptime_patch_request = requests.patch(url=f'{uptime_table}?id=eq.{timeID}', headers=postgres_API_headers, data=uptime_payload)
+
         logToImporter("There was a error with the import")
     else:
+        #set item end_time and set error boolean to false
+        uptime_payload = json.dumps({"end_time" : end_time, "error" : False}, indent=4, default=str)
+        uptime_patch_request = requests.patch(url=f'{uptime_table}?id=eq.{timeID}', headers=postgres_API_headers, data=uptime_payload)
         logToImporter("Succesful Import")
 
     #return errors

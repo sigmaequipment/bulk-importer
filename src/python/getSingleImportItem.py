@@ -1,11 +1,12 @@
 import json
-from datetime import date
+from datetime import date, datetime
 import requests
 import threading
 import time
-from importerErrorHandling import skuErrorHandler, uploadFailedImports, PostgREST_Table_String, Importer_URL
+from importerErrorHandling import skuErrorHandler, uploadFailedImports, PostgREST_Table_String, Importer_URL, uptime_table, postgres_API_headers
 from importerLogging import logToImporter
 import traceback
+import pytz
 
 
 #load the user and tenant token json
@@ -156,6 +157,17 @@ class BackgroundTaskSingleImport(threading.Thread):
                 #save sku of item to be saved later
                 sku = item["inventory_sku"]
 
+                #save start time for to track uptime
+                start_time = datetime.now(pytz.timezone("US/Central"))
+                
+                #send starttime to DB
+                uptime_payload = json.dumps({"inventory_sku" : sku, "start_time" : start_time}, indent=4, default=str)
+                uptime_request = requests.post(url=uptime_table, headers=postgres_API_headers, data=uptime_payload)
+                
+                #get id of time entry that was just created
+                uptime_query = (requests.get(f'{uptime_table}?select=id&start_time=eq.{start_time}').json())[0]
+                timeID = uptime_query['id']
+
                 #set up dictionary for tokens
                 tokens = {
                     "clientid": datachannel['clientid'],
@@ -172,15 +184,26 @@ class BackgroundTaskSingleImport(threading.Thread):
                 headers = {"Content-Type": "application/json"}
                 importer_request = requests.post(url=Importer_URL, headers=headers, data=payload, timeout=None).json()
 
+                #save the end time of the request
+                end_time = datetime.now(pytz.timezone("US/Central"))
+
                 #get list of skus that returned errors
                 importer_request_errors =  importer_request["badSkus"]
 
                 #upload the list of failed skus to the reimport table
                 if (importer_request_errors != []):
+                    #set item end_time and don't do anything with error boolean, since it is default to true
+                    uptime_payload = json.dumps({"end_time" : end_time}, indent=4, default=str)
+                    uptime_patch_request = requests.patch(url=f'{uptime_table}?id=eq.{timeID}', headers=postgres_API_headers, data=uptime_payload)
+
                     logToImporter("There was a error with the import")
-                    skuErrorHandler(importer_request_errors)
+                    skuErrorHandler(importer_request_errors, timeID)
 
                 else:
+                    #set item end_time and set error boolean to false
+                    uptime_payload = json.dumps({"end_time" : end_time, "error" : False}, indent=4, default=str)
+                    uptime_patch_request = requests.patch(url=f'{uptime_table}?id=eq.{timeID}', headers=postgres_API_headers, data=uptime_payload)
+
                     logToImporter("Succesful Import")
 
                 #update the json storing the last imported sku
