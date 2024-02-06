@@ -629,13 +629,17 @@ Before actually reimporting the item, you need to verify that the SKU has been r
 
 Also before reimporting the SKU, I suggest watching the Importer's log to make sure the importer is waiting while you try to initate a reimport. While I'm not sure if the issue still exists, but there were issues that arose in the past when calling a reimport while the importer was in the process of importing another item
 
-To reimport the SKU, you must run the manualImport.py script from the base directory, while passing it the SKU as a commandline argument (while the virtual environment is active). Below is an example of what this would look like with SKU 379908:
+To reimport the SKU, you must run the manualImport.py script from the base directory, while passing it the SKU as a commandline argument (while the virtual environment is active). 
 
-    (env) ~/bulk-importer$ py ./src/python/maunalImport.py 379908
+    py ./src/python/maunalImport.py [SKU]
 
 or use
 
-    (env) ~/bulk-importer$ python3 ./src/python/maunalImport.py 379908
+    python3 ./src/python/maunalImport.py [SKU]
+
+Below is an example of what this would look like with SKU 379908:
+
+    (env) ~/bulk-importer$ py ./src/python/maunalImport.py 379908
 
 If successful, the following will be returned
     
