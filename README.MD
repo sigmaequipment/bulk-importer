@@ -617,3 +617,36 @@ In Channel Advisor, this is 625 unique items (Parent and Children Sku's).
   "results": []
 }
 ```
+
+---
+
+### Reimport Item
+
+If there was an issue with an item import and a singular SKU needs to be reimported to CA/SV, it can be reimported using the manualImport.py python script. This script can be run from the server that hosts the importer, or from a personal machine that is connected to the VPN and has a venv set up based on the requirements.txt file and activated.
+(see https://www.freecodecamp.org/news/how-to-setup-virtual-environments-in-python/ if you need help with that)
+
+Before actually reimporting the item, you need to verify that the SKU has been removed from SKU Vault and Channel Advisor. If there are any images attached to the item on either SV or CA, contact Tyler Applegate so that he can handle the removal of those images. If there is quantity tied to the item in SV, Libby in Surplus will need to be contacted so that Surplus can handle the item before it is removed from SV/CA. Once that SKU has been successfully removed from both sources it can be reimported.
+
+Also before reimporting the SKU, I suggest watching the Importer's log to make sure the importer is waiting while you try to initate a reimport. While I'm not sure if the issue still exists, but there were issues that arose in the past when calling a reimport while the importer was in the process of importing another item
+
+To reimport the SKU, you must run the manualImport.py script from the base directory, while passing it the SKU as a commandline argument (while the virtual environment is active). 
+
+    py ./src/python/maunalImport.py [SKU]
+
+or use
+
+    python3 ./src/python/maunalImport.py [SKU]
+
+Below is an example of what this would look like with SKU 379908:
+
+    (env) ~/bulk-importer$ py ./src/python/maunalImport.py 379908
+
+If successful, the following will be returned
+    
+    Importing 379908
+    Successful Import
+
+If there is an issue from the import, the following will be returned and the item will be added to the reimport_needed table in the postgresql db
+
+    Importing 379908
+    There was an error with the import
