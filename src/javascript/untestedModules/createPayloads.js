@@ -10,6 +10,7 @@ module.exports = async function createPayloads (items) {
     let skuVaultPayload = formatDataForSkuVault(items);
     console.log(JSON.stringify(skuVaultPayload[0],null,2))
     let channelAdvisorPayload = items.map(formatItem).flat()
+    // add description parser here
     return {
         channelAdvisorPayload,
         skuVaultPayload}
