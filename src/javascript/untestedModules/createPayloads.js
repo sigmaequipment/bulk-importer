@@ -13,5 +13,6 @@ module.exports = async function createPayloads (items) {
     // add description parser here
     return {
         channelAdvisorPayload,
-        skuVaultPayload}
+        skuVaultPayload
+    }
 }
