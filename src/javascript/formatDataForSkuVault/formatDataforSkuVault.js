@@ -22,7 +22,7 @@
         * Tenant Token: string
         * User Token: string
         * Items: array of objects
-            * Sku: string required
+            * Sku: string required 
             * Description: string
             * Classification: string required
             * Supplier: string required
@@ -40,7 +40,7 @@ module.exports = function formatDataForSkuVault(items) {
         let formattedItems = formatItem(items[i]);
         const {Sku,Title, Brand, Classification, MPN,} = formattedItems[0];
         for (let j = 0; j < conditions.length; j++) {
-            let attributes = formattedItems[j]["Attributes"];
+            let attributes = formattedItems[j + 1]["Attributes"];
             let formattedCondition = attributes.find(({Name}) => Name === "(03.) Condition")?.Value;
             let condition = conditions[j];
             let tempItem = {
