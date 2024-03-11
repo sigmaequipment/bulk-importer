@@ -22,62 +22,84 @@ with open('src/json/SkuVaultAPI.json', 'r+') as skuvaultjson:
     dataskuvault = json.load(skuvaultjson)
 
 #load the last sku that was imported by the single import script
-with open('src/json/singleSKU.json', 'r+') as skuFile:
-    lastImport = json.load(skuFile)
+with open('src/json/singleSKU.json', 'r+') as skuFileUser:
+    lastUserImport = json.load(skuFileUser)
+
+#load the last sku that was imported by the bulk import script
+with open('src/json/bulkSKU.json', 'r+') as skuFileNonUser:
+    lastNonUserImport = json.load(skuFileNonUser)
 
 
 #---------------------------------------------------------------------------------------------------------------
 #modify the file that holds the sku of the last item that was imported via the single importer
 def updateSingleSKUFile(sku):
-    lastImport["singleSKU"] = sku
+    lastUserImport["singleSKU"] = sku
     with open('src/json/singleSKU.json', 'w') as currentSKU:
-        json.dump(lastImport, currentSKU)
+        json.dump(lastUserImport, currentSKU)
+
+#---------------------------------------------------------------------------------------------------------------
+#modify the file that holds the sku of the last item that was imported via the bulk importer
+def updateBulkSKUFile(sku):
+    lastNonUserImport["bulkSKU"] = sku
+    with open('src/json/bulkSKU.json', 'w') as currentSKU:
+        json.dump(lastNonUserImport, currentSKU)
 
 
 #---------------------------------------------------------------------------------------------------------------
-#function to hanlde the incrementing foward of the sku should an error occur three times in a row
-def incrementFromErrorSingle(error_msg):
-    
-    error_dict = {
-        'Sku': None,
-        'Error': None
-    }
+#This is a helper function to handle the priority queue for imports
+#Will check for user created templates first, then check all other sources for new templates
+#returns a dictonary containing the item and the type of item returned, if null the loop will continue
+def queryForQueue(sku_of_last_user_import, sku_of_last_nonuser_import):
 
-    #make request to get the sku that was being attempeted to be imported
-    sku_of_last_import = lastImport["singleSKU"]
-    single_import_query_response = requests.get(f'{PostgREST_Table_String}?select=inventory_sku&and=(inventory_sku.gt.{sku_of_last_import},or(source.eq."MANUAL CREATION", source.eq."SERIES GENERATOR"))&order=inventory_sku.asc&limit=1')
+    #init return values
+    item = None
+    type = None
+
+    #get user created item
+    user_import_query_response = requests.get(f'{PostgREST_Table_String}?select=*&and=(inventory_sku.gt.{sku_of_last_user_import},or(source.eq."MANUAL CREATION", source.eq."SERIES GENERATOR"))&order=inventory_sku.asc&limit=1')
 
     #check status of the response
-    if single_import_query_response.status_code != 200:
-        error_dict["Error"] = f"Response from db was {single_import_query_response.status_code} when getting sku for error increment"
-        return error_dict
+    if user_import_query_response.status_code != 200:
+        logToImporter(f"Recieved {user_import_query_response.status_code} when querying DB for items to import. Waiting 60s")
+        time.sleep(60)
+        return {"item": None,"type": None}
     
     #set json from response
-    single_import_query = single_import_query_response.json()
+    user_import_query = user_import_query_response.json()
 
-    #if the queury returns an empty list wait 30s and then look again for more items
-    if single_import_query == [] or single_import_query is None:
-        error_dict["Error"] = f"SKU was not found for error increment"
-        return error_dict
+    #if the queury returns an empty list, check for non-user created items
+    if user_import_query == [] or user_import_query is None:
+        
+        #get non user created item
+        nonuser_import_query_response = requests.get(f'{PostgREST_Table_String}?select=*&and=(inventory_sku.gt.{sku_of_last_nonuser_import},and(source.not.eq."MANUAL CREATION", source.not.eq."SERIES GENERATOR"))&order=inventory_sku.asc&limit=1')
 
-    #get the item from the query
-    item = single_import_query[0]
-    error_dict["Sku"] = item["inventory_sku"]
+        #check status of the response
+        if nonuser_import_query_response.status_code != 200:
+            logToImporter(f"Recieved {nonuser_import_query_response.status_code} when querying DB for items to import. Waiting 60s")
+            time.sleep(60)
+            return {"item": None,"type": None}
+        
+        #set json from response
+        nonuser_import_query = nonuser_import_query_response.json()
 
-    #dict to send to reimport table
-    reimport_list = [{
-        "Sku" : str(item["inventory_sku"]),
-        "ErrorMessages" : error_msg,
-        "FailedAt" : "Single Import Script"
-    }]
+        #if the queury returns an empty list, wait 30s and then look again for more items
+        if nonuser_import_query == [] or nonuser_import_query is None:
+            logToImporter("Importer waiting 30 seconds")
+            time.sleep(30)
+            return {"item": None,"type": None}
+        
+        #there was an available non user created template
+        else:
+            item = nonuser_import_query[0]
+            type = "NU"
 
-    #call reimport table function
-    reimport = uploadFailedImports(reimport_list, create_brands_bool=False)
+    #there was an available user created template
+    else:
+        item = user_import_query[0]
+        type = "U"
 
-    #update sku file
-    updateSingleSKUFile(item["inventory_sku"])
-    
-    return error_dict
+    #return item and type
+    return {"item": item,"type": type}
 
 
 
@@ -94,31 +116,21 @@ class BackgroundTaskSingleImport(threading.Thread):
             sku = 0
             
             #sku that was imported last
-            sku_of_last_import = lastImport["singleSKU"]
+            sku_of_last_user_import = lastUserImport["singleSKU"]
+            sku_of_last_nonuser_import = lastNonUserImport["bulkSKU"]
 
             #catch for connection errors
             try:
 
-                #query to get the items that need to be imported
-                single_import_query_response = requests.get(f'{PostgREST_Table_String}?select=*&and=(inventory_sku.gt.{sku_of_last_import},or(source.eq."MANUAL CREATION", source.eq."SERIES GENERATOR", source.eq."BROAD SCRAPE (NRI)"))&order=inventory_sku.asc&limit=1')
-
-                #check status of the response
-                if single_import_query_response.status_code != 200:
-                    logToImporter(f"Recieved {single_import_query_response.status_code} when querying DB for items to import. Waiting 60s")
-                    time.sleep(60)
-                    continue
-
-                #set json from response
-                single_import_query = single_import_query_response.json()
-
-                #if the queury returns an empty list wait 30s and then look again for more items
-                if single_import_query == [] or single_import_query is None:
-                    logToImporter("Single waiting 30 seconds")
-                    time.sleep(30)
+                #check for user created, then non user created, then sleep if neither
+                queue_item = queryForQueue(sku_of_last_user_import, sku_of_last_nonuser_import)
+                
+                #if there was no item returned, restart loop
+                if queue_item["type"] is None:
                     continue
 
                 #get the item from the query
-                item = single_import_query[0]
+                item = queue_item["item"]
 
                 logToImporter(f"Importing {item['inventory_sku']}")
 
@@ -207,7 +219,10 @@ class BackgroundTaskSingleImport(threading.Thread):
                     logToImporter("Succesful Import")
 
                 #update the json storing the last imported sku
-                updateSingleSKUFile(sku)
+                if queue_item["type"] == "U":
+                    updateSingleSKUFile(sku)
+                elif queue_item["type"] == "NU":
+                    updateBulkSKUFile(sku)
 
             #catch connection error
             except requests.exceptions.ConnectionError as e:
@@ -232,25 +247,5 @@ if __name__ == "__main__":
             error_string = ''.join(traceback.TracebackException.from_exception(ex).format())
             logToImporter(error_string)
         
-        #increment error count
-        errorCount += 1
-
-        #if error count reaches 3 and the same sku errored three times, it gets the sku that was being attempted to be imported, saves it to the reimport table
-        if errorCount >= 3 and error_sku == lastImport["singleSKU"]:
-            errorCount = 0
-
-            #call function to get sku that failed, send to reimport table, and update sku file
-            try:
-                error_dict = incrementFromErrorSingle(error_string)
-                if (error_dict['Error'] is not None):
-                    logToImporter(error_dict['Error'])
-            except Exception as ex:
-                error_string = ''.join(traceback.TracebackException.from_exception(ex).format())
-                logToImporter(error_string)
-            
-            
-        #save sku that failed
-        error_sku = lastImport["singleSKU"]
-
         logToImporter("This is only reached if error was encountered. Sleeping for 60s before restarting importer")
         time.sleep(60)
