@@ -1,108 +1,84 @@
-/*
-************************************************************************************************************************
-* Sigma Logger
-* Version: 1.0.0
-* Description: Logger to create permanent records of events
- */
+const winston = require('winston')
+require('winston-daily-rotate-file');
 
-const fs = require('fs');
-const path = require('path');
+const { combine, timestamp, json, colorize, align, printf, errors } = winston.format;
 
-function findRootFolder() {
-    let currentPath = __dirname;
-    while (currentPath !== '/') {
-        if (fs.existsSync(path.join(currentPath, 'package.json'))) {
-            return currentPath;
-        }
-        currentPath = path.join(currentPath, '..');
-    }
-    return null;
-}
+const errorFilter = winston.format((info) => {
+    return info.level === 'error' ? info : false;
+});
 
-function init() {
-    const rootFolder = findRootFolder();
-    if (!rootFolder) {
-        throw new Error('Unable to find root folder');
+const plainTextFormatter = printf((info) => {
+    const { level, message, timestamp, ...meta } = info;
+    let metaText;
+    if(Object.entries(meta).length > 0){
+        metaText = JSON.stringify(Object.entries(meta).reduce((acc,[key,val]) => {
+            acc[key] = val;
+            return acc;
+        },{}));
     }
-    const logFolder = path.join(rootFolder, 'logs');
-    if (!fs.existsSync(logFolder)) {
-        fs.mkdirSync(logFolder);
-    }
-}
-let logger;
-class Logger {
-    constructor() {
-        this.usesTimestamp = true;
-        this.usesConsole = true;
-    }
-    createFile() {
-        const date = new Date();
-        let getDate = date.getDate();
-        if(getDate < 10){
-            getDate = `0${getDate}`
-        }
-        let getMonth = date.getMonth() + 1;
-        if(getMonth < 10){
-            getMonth = `0${getMonth}`
-        }
-        const fileName = `${date.getFullYear()}-${getMonth}-${getDate}-log.log`;
-        const rootFolder = findRootFolder();
-        const logFolder = path.join(rootFolder, 'logs');
-        return path.join(logFolder, fileName);
-    }
-    writeToLog(message) {
-        const date = new Date();
-        const fileName = this.createFile();
-        const hour = date.getHours();
-        const minute = date.getMinutes();
-        const second = date.getSeconds();
-        let timeStamp = `${date.toDateString()} ${hour}:${minute}:${second}`
-        const logMessage =
-            `${this.usesTimestamp ? timeStamp : ""} ${message}\n`;
-        fs.appendFileSync(fileName, logMessage);
-    }
-    log =(...message)=> {
-        this.writeToLog(message.join(' '));
-        if (this.usesConsole) {
-            console.log(...message);
-        }
-    }
-    error=(...message)=> {
-        this.writeToLog(message.join(' '));
-        if (this.usesConsole) {
-            console.error(...message);
-        }
-    }
-    warn=(...message)=> {
-        this.writeToLog(message.join(' '));
-        if (this.usesConsole) {
-            console.warn(...message);
-        }
-    }
-    info=(...message)=> {
-        this.writeToLog(message.join(' '));
-        if (this.usesConsole) {
-            console.info(...message);
-        }
-    }
-    debug=(...message)=> {
-        this.writeToLog(message.join(' '));
-        if (this.usesConsole) {
-            console.debug(...message);
-        }
-    }
-    trace=(...message)=> {
-        this.writeToLog(message.join(' '));
-        if (this.usesConsole) {
-            console.trace(...message);
-        }
-    }
+    return `[${timestamp}] ${level}: ${message} ${metaText ? metaText : ""}`
+});
 
-}
+const timeStampFormatter = timestamp({ format: 'MM-DD-YYYY hh:mm:ss.SSS A' })
 
-logger = new Logger();
-const { log, error, warn, info, debug, trace } = logger;
-init();
+const CLI = combine(
+    colorize(),
+    timeStampFormatter,
+    align(),
+    plainTextFormatter
+)
+
+const generalTransport = new winston.transports.DailyRotateFile({
+    filename: './logs/%DATE%-logs.log',
+    format: combine(timestamp(), json()),
+    datePattern: 'MM-DD-YYYY',
+    maxFiles: '30d',
+});
+
+const plainTextOutput = new winston.transports.DailyRotateFile({
+    filename: './logs/%DATE%-plain.log',
+    format: combine(
+        timeStampFormatter,
+        align(),
+        plainTextFormatter
+    ),
+    datePattern: 'MM-DD-YYYY',
+    maxFiles: '30d',
+});
+
+const errorTransport = new winston.transports.DailyRotateFile({
+    filename: './logs/%DATE%-error.log',
+    format: combine(errorFilter(), timeStampFormatter, json()),
+    datePattern: 'MM-DD-YYYY',
+    maxFiles: '30d',
+});
+
+const cliTransport = new winston.transports.Console({
+    format: CLI
+});
+
+const logger = winston.createLogger({
+    level: process.env.LOG_LEVEL || "info",
+    format: combine(errors({ stack: true }), timeStampFormatter, json()),
+    exitOnError: false,
+    exceptionHandlers: [
+        errorTransport,
+    ],
+    rejectionHandlers: [
+        errorTransport,
+    ],
+    transports: [
+        cliTransport,
+        plainTextOutput,
+        errorTransport,
+        generalTransport,
+    ]
+});
+
+
+let { error, warn, info, debug, trace } = logger;
+const log = info
+
 logger.log("Logger initialized");
 module.exports = {
     log,
@@ -112,3 +88,4 @@ module.exports = {
     debug,
     trace
 }
+exports.Logger = logger;

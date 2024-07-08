@@ -77,4 +77,28 @@ describe(" The Description parser takes a string and an array of expected keys a
             "PHASE": "TEST PHASE"
         })
     })
+    it("Still works when the string contains white space and missing keys",()=> {
+        const testString = `THIS IS A TEST DESC||ACTUATION TYPE: TEST TYPEL||CLASS: CLASSY CLASS||COIL VOLTAGE: 15||MOUNTING TYPE: TEST TYPE||THREAD TYPE: THREAD||MAX PRESSURE: 18`;
+        const expectedKeys = [
+            "ACTUATION TYPE",
+            "CLASS",
+            "COIL VOLTAGE",
+            "CONFIGURATION",
+            "MOUNTING TYPE",
+            "PORT SIZE",
+            "THREAD TYPE",
+            "MAX PRESSURE"
+        ]
+        const result = descriptionParser(testString, expectedKeys)
+        expect(result).toEqual({
+            "ACTUATION TYPE": "TEST TYPEL",
+            "CLASS": "CLASSY CLASS",
+            "COIL VOLTAGE": "15",
+            "CONFIGURATION": "",
+            "MOUNTING TYPE": "TEST TYPE",
+            "PORT SIZE": "",
+            "THREAD TYPE": "THREAD",
+            "MAX PRESSURE": "18"
+        })
+    })
 })

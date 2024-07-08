@@ -84,8 +84,8 @@ fastify.get("/restart", (req, reply) => {
 
 
 fastify.get("/log", (req, reply) => {
-    const date = new Date();
-    const fileName = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}-log.log`;
+    const date = new Date(); // 'MM-DD-YYYY'
+    const fileName = `${date.getMonth() + 1}-${date.getDate()}-${date.getFullYear()}-log.log`;
     let log = require('fs').readFileSync(`./logs/${fileName}`, 'utf8');
     reply.send(log);
 })
