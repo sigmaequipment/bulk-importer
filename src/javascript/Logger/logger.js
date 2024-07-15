@@ -76,16 +76,13 @@ const logger = winston.createLogger({
 });
 
 
-let { error, warn, info, debug, trace } = logger;
+let { error, warn, info, debug } = logger;
 const log = info
-
-logger.log("Logger initialized");
 module.exports = {
     log,
     error,
     warn,
     info,
     debug,
-    trace
 }
 exports.Logger = logger;
